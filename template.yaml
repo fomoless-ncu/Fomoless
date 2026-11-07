@@ -1,0 +1,90 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: FomoLess - NCU campus events LINE bot (M1 skeleton)
+
+Parameters:
+  Stage:
+    Type: String
+    AllowedValues: [dev, prod]
+    Default: dev
+    Description: Deployment environment
+
+Globals:
+  Function:
+    Runtime: python3.12
+    Architectures: [arm64]
+    MemorySize: 512
+    Timeout: 15
+    LoggingConfig:
+      LogFormat: JSON
+    Environment:
+      Variables:
+        STAGE: !Ref Stage
+        EVENTS_TABLE: !Ref EventsTable
+        SSM_PREFIX: !Sub /fomoless/${Stage}
+
+Resources:
+  # LINE webhook: receives LINE events and replies via the Reply API
+  LineWebhookFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub fomoless-${Stage}-line-webhook
+      CodeUri: backend/webhook/
+      Handler: app.handler
+      Description: Receives LINE webhook events and replies to users
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: !Ref EventsTable
+        - SSMParameterReadPolicy:
+            ParameterName: !Sub fomoless/${Stage}/*
+      Events:
+        Webhook:
+          Type: HttpApi
+          Properties:
+            Path: /webhook
+            Method: POST
+
+  WebhookLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /aws/lambda/fomoless-${Stage}-line-webhook
+      RetentionInDays: 14
+
+  # Events table: one item per campus event
+  EventsTable:
+    Type: AWS::DynamoDB::Table
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      TableName: !Sub fomoless-${Stage}-events
+      BillingMode: PAY_PER_REQUEST
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
+      AttributeDefinitions:
+        - AttributeName: event_id
+          AttributeType: S
+        - AttributeName: month
+          AttributeType: S
+        - AttributeName: start_at
+          AttributeType: S
+      KeySchema:
+        - AttributeName: event_id
+          KeyType: HASH
+      GlobalSecondaryIndexes:
+        # Query events by month, sorted by start time (e.g. "this week")
+        - IndexName: month-start_at-index
+          KeySchema:
+            - AttributeName: month
+              KeyType: HASH
+            - AttributeName: start_at
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+
+Outputs:
+  WebhookUrl:
+    Description: Paste into LINE Developers Console > Messaging API > Webhook URL
+    Value: !Sub https://${ServerlessHttpApi}.execute-api.${AWS::Region}.amazonaws.com/webhook
+  EventsTableName:
+    Description: DynamoDB events table
+    Value: !Ref EventsTable
