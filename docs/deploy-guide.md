@@ -352,12 +352,14 @@ git status          # 確認清單裡沒有 env.json、.venv、.aws-sam
 git commit -m "feat: M1 SAM 骨架與 LINE webhook"
 git push -u origin feature/m1-skeleton
 gh pr create --base develop --title "M1：SAM 骨架與 LINE webhook" \
-  --body "已部署 dev 並用手機測試：歡迎訊息、Hello、本週活動皆正常。部署步驟見 docs/deploy-guide.md。"
+  --body "已部署 dev 並測試。部署步驟見 docs/deploy-guide.md。" \
+  --reviewer 士育的GitHub帳號,Gabe的GitHub帳號
 ```
 
 ### 6-2 審查與合併
 
-- 指定 **士育** 審查（你不能核准自己的 PR）。
+- 指定 **士育** 和 **Gabe** 審查，一位核准即可合併（你不能核准自己的 PR）。
+- `--reviewer` 要填 GitHub 帳號名稱，且對方須已加入 `fomoless-ncu` 組織；不確定帳號時可先省略，發完 PR 再到網頁右側 **Reviewers** 點選。
 - 核准後按 **Squash and merge**。
 
 ### 6-3 組員接手後怎麼開發
