@@ -183,11 +183,11 @@ repo 原本的 `README.md` 和 `.gitignore` 會被覆蓋，這是預期的。
 ```bash
 python3.12 -m venv .venv
 source .venv/bin/activate          # Windows：.venv\Scripts\activate
-pip install -r backend/webhook/requirements.txt boto3 pytest
+pip install -r requirements-dev.txt
 pytest
 ```
 
-看到 `18 passed` 就代表程式沒問題。之後每次開新終端機，都要先執行 `source .venv/bin/activate`。
+看到 `20 passed` 就代表程式沒問題。之後每次開新終端機，都要先執行 `source .venv/bin/activate`。
 
 ---
 

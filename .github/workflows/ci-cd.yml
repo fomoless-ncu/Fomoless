@@ -18,9 +18,11 @@ on:
 permissions:
   contents: read
 
+# PR：同一個 PR 連續 push 時，取消舊的測試，只跑最新的
+# develop / main：部署不取消，依序排隊，避免部署做到一半被中斷
 concurrency:
-  group: deploy-${{ github.ref }}
-  cancel-in-progress: false
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
   AWS_REGION: ap-east-2
@@ -38,9 +40,7 @@ jobs:
           python-version: ${{ env.PYTHON_VERSION }}
 
       - name: Install dependencies
-        run: |
-          pip install -r backend/webhook/requirements.txt
-          pip install boto3 pytest cfn-lint
+        run: pip install -r requirements-dev.txt
 
       - name: Unit tests
         run: pytest -q
