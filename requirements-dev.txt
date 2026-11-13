@@ -1,0 +1,8 @@
+# 本機開發與 CI 用的套件（不會打包進 Lambda）
+# 安裝：pip install -r requirements-dev.txt
+-r backend/webhook/requirements.txt
+
+pydantic==2.14.3   # shared/models.py 直接使用，不再靠 line-bot-sdk 間接安裝
+boto3              # Lambda 執行環境內建；本機測試、seed 腳本需要
+pytest
+cfn-lint

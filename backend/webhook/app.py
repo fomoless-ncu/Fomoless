@@ -34,7 +34,7 @@ from linebot.v3.messaging import (                        # LINE SDK：送出回
 )
 from linebot.v3.webhooks import FollowEvent, MessageEvent, TextMessageContent
 
-from week import months_between, week_range  # 同資料夾的 week.py：計算「本週」範圍（台灣時間）
+from week import has_ended, months_between, query_bounds, week_range  # 同資料夾的 week.py：計算「本週」範圍（台灣時間）
 
 # ---------- 全域設定 ----------
 logger = logging.getLogger()
@@ -98,22 +98,25 @@ def find_events_this_week(now: datetime | None = None) -> list[dict]:
       - 再篩選開始時間在本週範圍內的
       - 本週如果跨月（例如 11/28～12/4），就兩個月各查一次
     這樣不用掃描整張表（Scan），資料再多也又快又便宜。
+    今天稍早已經結束的活動（end_at 已過）不列出。
     """
     if not EVENTS_TABLE:  # 本機測試沒設定資料表時，直接回傳空清單
         return []
-    start, end = week_range(now or datetime.now(timezone.utc))
+    now = now or datetime.now(timezone.utc)
+    start, end = week_range(now)
+    low, high = query_bounds(start, end)  # BETWEEN 兩端都包含，上界取第 7 天 23:59:59
     table = boto3.resource("dynamodb").Table(EVENTS_TABLE)
     items: list[dict] = []
     for month in months_between(start, end):
         resp = table.query(
             IndexName="month-start_at-index",
             # 月份相同，且開始時間介於本週起訖之間（時間是 +08:00 格式的字串，可直接比大小）
-            KeyConditionExpression=Key("month").eq(month)
-            & Key("start_at").between(start.isoformat(), end.isoformat()),
+            KeyConditionExpression=Key("month").eq(month) & Key("start_at").between(low, high),
             FilterExpression=Attr("status").eq("published"),  # 草稿不給學生看
         )
         items.extend(resp.get("Items", []))
-    return sorted(items, key=lambda e: e.get("start_at", ""))
+    upcoming = [e for e in items if not has_ended(e, now)]
+    return sorted(upcoming, key=lambda e: e.get("start_at", ""))
 
 
 # =====================================================================
