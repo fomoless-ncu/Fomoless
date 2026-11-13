@@ -1,0 +1,40 @@
+version = 0.1
+
+# ---------- dev (develop branch) ----------
+[dev.build.parameters]
+use_container = true
+
+[dev.deploy.parameters]
+stack_name = "fomoless-dev"
+region = "ap-east-2"
+capabilities = "CAPABILITY_IAM"
+parameter_overrides = "Stage=dev"
+resolve_s3 = true
+confirm_changeset = false
+fail_on_empty_changeset = false
+
+[dev.sync.parameters]
+stack_name = "fomoless-dev"
+region = "ap-east-2"
+parameter_overrides = "Stage=dev"
+watch = true
+
+# ---------- prod (main branch) ----------
+[prod.build.parameters]
+use_container = true
+
+[prod.deploy.parameters]
+stack_name = "fomoless-prod"
+region = "ap-east-2"
+capabilities = "CAPABILITY_IAM"
+parameter_overrides = "Stage=prod"
+resolve_s3 = true
+confirm_changeset = true
+fail_on_empty_changeset = false
+
+# ---------- local testing ----------
+[default.build.parameters]
+use_container = true
+
+[default.local_invoke.parameters]
+env_vars = "env.json"

@@ -1,0 +1,644 @@
+[
+  {
+    "event_id": "crawler_portal-143a838b8b2a",
+    "activity_id": "SAMPLE-A001",
+    "title": "生成式 AI 應用入門講座",
+    "host": "學務處課外活動組",
+    "speaker": "（範例講者）",
+    "description": "【範例資料】生成式 AI 應用入門講座。此筆為開發測試用假資料。",
+    "audience": "全部學生",
+    "start_at": "2026-11-09T19:00:00+08:00",
+    "end_at": "2026-11-09T21:00:00+08:00",
+    "location": "工程五館 E1-101",
+    "mode": "onsite",
+    "registration_method": "portal",
+    "registration_start": "2026-11-01T08:00:00+08:00",
+    "registration_end": "2026-11-08T23:59:00+08:00",
+    "capacity": 150,
+    "registered_count": 87,
+    "tags": [
+      "講座",
+      "免費點心",
+      "其他生活知能"
+    ],
+    "learning_passport_hours": [
+      {
+        "category": "其他生活知能",
+        "hours": 2.0
+      }
+    ],
+    "learning_passport_condition": "both",
+    "soft_skill_hours": [
+      {
+        "category": "科技應用",
+        "hours": 1.0
+      },
+      {
+        "category": "跨域整合",
+        "hours": 1.0
+      }
+    ],
+    "perks": "現場提供點心",
+    "info_url": "https://example.com/fomoless-sample/01",
+    "source": "crawler_portal",
+    "source_url": "https://example.com/fomoless-sample/01",
+    "status": "published",
+    "created_at": "2026-11-07T12:00:00+08:00",
+    "updated_at": "2026-11-07T12:00:00+08:00",
+    "month": "2026-11",
+    "categories": [
+      "credit_hours",
+      "free_perks"
+    ],
+    "is_full": false
+  },
+  {
+    "event_id": "crawler_portal-b48c40563d32",
+    "activity_id": "SAMPLE-A003",
+    "title": "115-1 學期院週會（範例）",
+    "host": "（範例學院）",
+    "speaker": "（範例講者）",
+    "description": "【範例資料】115-1 學期院週會（範例）。此筆為開發測試用假資料。",
+    "audience": "全部學生",
+    "start_at": "2026-11-10T10:00:00+08:00",
+    "end_at": "2026-11-10T12:00:00+08:00",
+    "location": "國際會議廳",
+    "mode": "onsite",
+    "registration_method": "portal",
+    "registration_start": "2026-10-16T12:00:00+08:00",
+    "registration_end": "2026-11-10T09:00:00+08:00",
+    "capacity": 120,
+    "registered_count": 120,
+    "tags": [
+      "講座",
+      "院週會"
+    ],
+    "learning_passport_hours": [
+      {
+        "category": "院週會",
+        "hours": 2.0
+      }
+    ],
+    "learning_passport_condition": "sign_out",
+    "soft_skill_hours": [
+      {
+        "category": "批判思考",
+        "hours": 0.66
+      },
+      {
+        "category": "領導統御",
+        "hours": 0.66
+      },
+      {
+        "category": "國際移動",
+        "hours": 0.68
+      }
+    ],
+    "info_url": "https://example.com/fomoless-sample/03",
+    "source": "crawler_portal",
+    "source_url": "https://example.com/fomoless-sample/03",
+    "status": "published",
+    "created_at": "2026-11-07T12:00:00+08:00",
+    "updated_at": "2026-11-07T12:00:00+08:00",
+    "month": "2026-11",
+    "categories": [
+      "credit_hours"
+    ],
+    "is_full": true
+  },
+  {
+    "event_id": "host_submission-69cb32ea8502",
+    "activity_id": "SAMPLE-A002",
+    "title": "期中加油站：免費便當發放",
+    "host": "學生會",
+    "description": "【範例資料】期中加油站：免費便當發放。此筆為開發測試用假資料。",
+    "audience": "全部學生",
+    "start_at": "2026-11-10T11:30:00+08:00",
+    "end_at": "2026-11-10T13:00:00+08:00",
+    "location": "中大湖畔廣場",
+    "mode": "onsite",
+    "registration_method": "none",
+    "tags": [
+      "免費便當"
+    ],
+    "learning_passport_hours": [],
+    "soft_skill_hours": [],
+    "perks": "限量 200 份，憑學生證領取",
+    "info_url": "https://example.com/fomoless-sample/02",
+    "source": "host_submission",
+    "source_url": "https://example.com/fomoless-sample/02",
+    "status": "published",
+    "created_at": "2026-11-07T12:00:00+08:00",
+    "updated_at": "2026-11-07T12:00:00+08:00",
+    "month": "2026-11",
+    "categories": [
+      "free_perks"
+    ],
+    "is_full": false
+  },
+  {
+    "event_id": "crawler_portal-b4420fe723e0",
+    "activity_id": "SAMPLE-A004",
+    "title": "半導體產業實習說明會",
+    "host": "職涯發展中心",
+    "description": "【範例資料】半導體產業實習說明會。此筆為開發測試用假資料。",
+    "audience": "全部學生",
+    "start_at": "2026-11-11T18:30:00+08:00",
+    "end_at": "2026-11-11T20:30:00+08:00",
+    "location": "國鼎圖書館 B1 國際會議廳",
+    "mode": "onsite",
+    "registration_method": "portal",
+    "registration_start": "2026-11-02T09:00:00+08:00",
+    "registration_end": "2026-11-11T12:00:00+08:00",
+    "capacity": 200,
+    "registered_count": 64,
+    "tags": [
+      "實習說明會",
+      "免費便當",
+      "自我探索與生涯規劃"
+    ],
+    "learning_passport_hours": [
+      {
+        "category": "自我探索與生涯規劃",
+        "hours": 2.0
+      }
+    ],
+    "learning_passport_condition": "sign_in",
+    "soft_skill_hours": [],
+    "perks": "出席即提供晚餐",
+    "info_url": "https://example.com/fomoless-sample/04",
+    "source": "crawler_portal",
+    "source_url": "https://example.com/fomoless-sample/04",
+    "status": "published",
+    "created_at": "2026-11-07T12:00:00+08:00",
+    "updated_at": "2026-11-07T12:00:00+08:00",
+    "month": "2026-11",
+    "categories": [
+      "career",
+      "free_perks",
+      "credit_hours"
+    ],
+    "is_full": false
+  },
+  {
+    "event_id": "extension_ncutalk-8c3807148ac7",
+    "activity_id": "SAMPLE-A005",
+    "title": "熱舞社期初成果發表",
+    "host": "熱舞社",
+    "description": "【範例資料】熱舞社期初成果發表。此筆為開發測試用假資料。",
+    "audience": "全部學生",
+    "start_at": "2026-11-12T19:00:00+08:00",
+    "end_at": "2026-11-12T21:30:00+08:00",
+    "location": "中大會館大禮堂",
+    "mode": "onsite",
+    "registration_method": "none",
+    "tags": [
+      "成果發表",
+      "抽獎",
+      "人文藝術"
+    ],
+    "learning_passport_hours": [
+      {
+        "category": "人文藝術",
+        "hours": 2.0
+      }
+    ],
+    "learning_passport_condition": "both",
+    "soft_skill_hours": [],
+    "perks": "入場抽藍牙耳機",
+    "info_url": "https://example.com/fomoless-sample/05",
+    "source": "extension_ncutalk",
+    "source_url": "https://example.com/fomoless-sample/05",
+    "status": "published",
+    "created_at": "2026-11-07T12:00:00+08:00",
+    "updated_at": "2026-11-07T12:00:00+08:00",
+    "month": "2026-11",
+    "categories": [
+      "performance",
+      "free_perks",
+      "credit_hours"
+    ],
+    "is_full": false
+  },
+  {
+    "event_id": "crawler_osa-f0579899cc1c",
+    "activity_id": "SAMPLE-A006",
+    "title": "淨灘志工服務",
+    "host": "服務學習發展中心",
+    "description": "【範例資料】淨灘志工服務。此筆為開發測試用假資料。",
+    "audience": "全部學生",
+    "start_at": "2026-11-14T08:00:00+08:00",
+    "end_at": "2026-11-14T16:00:00+08:00",
+    "location": "桃園永安漁港",
+    "mode": "onsite",
+    "registration_method": "external",
+    "registration_url": "https://example.com/fomoless-sample/form-06",
+    "registration_start": "2026-11-01T00:00:00+08:00",
+    "registration_end": "2026-11-12T23:59:00+08:00",
+    "capacity": 40,
+    "registered_count": 31,
+    "tags": [
+      "校外服務學習"
+    ],
+    "learning_passport_hours": [
+      {
+        "category": "校外服務學習",
+        "hours": 8.0
+      }
+    ],
+    "learning_passport_condition": "both",
+    "soft_skill_hours": [],
+    "perks": "提供午餐與保險",
+    "info_url": "https://example.com/fomoless-sample/06",
+    "source": "crawler_osa",
+    "source_url": "https://example.com/fomoless-sample/06",
+    "status": "published",
+    "created_at": "2026-11-07T12:00:00+08:00",
+    "updated_at": "2026-11-07T12:00:00+08:00",
+    "month": "2026-11",
+    "categories": [
+      "credit_hours"
+    ],
+    "is_full": false
+  },
+  {
+    "event_id": "crawler_osa-533be2eabd7e",
+    "activity_id": "SAMPLE-A007",
+    "title": "捐血活動",
+    "host": "衛生保健組",
+    "description": "【範例資料】捐血活動。此筆為開發測試用假資料。",
+    "audience": "全部學生",
+    "start_at": "2026-11-17T10:00:00+08:00",
+    "end_at": "2026-11-17T16:00:00+08:00",
+    "location": "中大湖畔廣場",
+    "mode": "onsite",
+    "registration_method": "none",
+    "tags": [
+      "贈品"
+    ],
+    "learning_passport_hours": [],
+    "soft_skill_hours": [],
+    "perks": "捐血贈超商禮券",
+    "info_url": "https://example.com/fomoless-sample/07",
+    "source": "crawler_osa",
+    "source_url": "https://example.com/fomoless-sample/07",
+    "status": "published",
+    "created_at": "2026-11-07T12:00:00+08:00",
+    "updated_at": "2026-11-07T12:00:00+08:00",
+    "month": "2026-11",
+    "categories": [
+      "free_perks"
+    ],
+    "is_full": false
+  },
+  {
+    "event_id": "crawler_portal-f7ecad291260",
+    "activity_id": "SAMPLE-A008",
+    "title": "線上履歷健診工作坊",
+    "host": "職涯發展中心",
+    "description": "【範例資料】線上履歷健診工作坊。此筆為開發測試用假資料。",
+    "audience": "全部學生",
+    "start_at": "2026-11-18T19:00:00+08:00",
+    "end_at": "2026-11-18T20:30:00+08:00",
+    "mode": "online",
+    "registration_method": "portal",
+    "registration_start": "2026-11-05T09:00:00+08:00",
+    "registration_end": "2026-11-17T23:59:00+08:00",
+    "capacity": 80,
+    "registered_count": 12,
+    "tags": [
+      "工作坊",
+      "職涯講座",
+      "自我探索與生涯規劃"
+    ],
+    "learning_passport_hours": [
+      {
+        "category": "自我探索與生涯規劃",
+        "hours": 1.5
+      }
+    ],
+    "learning_passport_condition": "sign_in",
+    "soft_skill_hours": [],
+    "info_url": "https://example.com/fomoless-sample/08",
+    "source": "crawler_portal",
+    "source_url": "https://example.com/fomoless-sample/08",
+    "status": "published",
+    "created_at": "2026-11-07T12:00:00+08:00",
+    "updated_at": "2026-11-07T12:00:00+08:00",
+    "month": "2026-11",
+    "categories": [
+      "career",
+      "credit_hours"
+    ],
+    "is_full": false
+  },
+  {
+    "event_id": "crawler_osa-10b7c022dea9",
+    "activity_id": "SAMPLE-A009",
+    "title": "國際學生迎新晚會",
+    "host": "國際事務處",
+    "description": "【範例資料】國際學生迎新晚會。此筆為開發測試用假資料。",
+    "audience": "全部學生",
+    "start_at": "2026-11-20T18:00:00+08:00",
+    "end_at": "2026-11-20T21:00:00+08:00",
+    "location": "學生活動中心",
+    "mode": "hybrid",
+    "registration_method": "none",
+    "tags": [
+      "迎新",
+      "免費點心",
+      "抽獎",
+      "國際視野"
+    ],
+    "learning_passport_hours": [
+      {
+        "category": "國際視野",
+        "hours": 2.0
+      }
+    ],
+    "learning_passport_condition": "sign_in",
+    "soft_skill_hours": [],
+    "perks": "異國小吃、抽獎",
+    "info_url": "https://example.com/fomoless-sample/09",
+    "source": "crawler_osa",
+    "source_url": "https://example.com/fomoless-sample/09",
+    "status": "published",
+    "created_at": "2026-11-07T12:00:00+08:00",
+    "updated_at": "2026-11-07T12:00:00+08:00",
+    "month": "2026-11",
+    "categories": [
+      "performance",
+      "free_perks",
+      "credit_hours"
+    ],
+    "is_full": false
+  },
+  {
+    "event_id": "crawler_portal-461115cd8b36",
+    "activity_id": "SAMPLE-A010",
+    "title": "人文與 AI 研究方法工作坊（範例）",
+    "host": "文學院",
+    "description": "【範例資料】人文與 AI 研究方法工作坊（範例）。此筆為開發測試用假資料。",
+    "audience": "全部學生",
+    "start_at": "2026-11-23T13:00:00+08:00",
+    "end_at": "2026-11-23T17:00:00+08:00",
+    "location": "文學一館",
+    "mode": "onsite",
+    "registration_method": "external",
+    "registration_url": "https://example.com/fomoless-sample/form-10",
+    "registration_start": "2026-11-04T12:00:00+08:00",
+    "registration_end": "2026-11-04T13:00:00+08:00",
+    "capacity": 80,
+    "registered_count": 80,
+    "tags": [
+      "工作坊",
+      "人文藝術"
+    ],
+    "learning_passport_hours": [
+      {
+        "category": "人文藝術",
+        "hours": 3.0
+      }
+    ],
+    "learning_passport_condition": "sign_in",
+    "soft_skill_hours": [
+      {
+        "category": "跨域整合",
+        "hours": 1.33
+      },
+      {
+        "category": "科技應用",
+        "hours": 1.33
+      },
+      {
+        "category": "人文關懷",
+        "hours": 1.34
+      }
+    ],
+    "info_url": "https://example.com/fomoless-sample/10",
+    "source": "crawler_portal",
+    "source_url": "https://example.com/fomoless-sample/10",
+    "status": "published",
+    "created_at": "2026-11-07T12:00:00+08:00",
+    "updated_at": "2026-11-07T12:00:00+08:00",
+    "month": "2026-11",
+    "categories": [
+      "career",
+      "credit_hours"
+    ],
+    "is_full": true
+  },
+  {
+    "event_id": "crawler_portal-6310e6b2b0f7",
+    "activity_id": "SAMPLE-A011",
+    "title": "AI 永續論壇（範例）",
+    "host": "（範例學院）",
+    "description": "【範例資料】AI 永續論壇（範例）。此筆為開發測試用假資料。",
+    "audience": "全部學生",
+    "start_at": "2026-11-24T10:00:00+08:00",
+    "end_at": "2026-11-24T17:00:00+08:00",
+    "location": "大禮堂",
+    "mode": "onsite",
+    "registration_method": "portal",
+    "registration_start": "2026-11-03T08:00:00+08:00",
+    "registration_end": "2026-11-20T12:00:00+08:00",
+    "capacity": 300,
+    "registered_count": 11,
+    "tags": [
+      "講座"
+    ],
+    "learning_passport_hours": [],
+    "soft_skill_hours": [],
+    "info_url": "https://example.com/fomoless-sample/11",
+    "source": "crawler_portal",
+    "source_url": "https://example.com/fomoless-sample/11",
+    "status": "published",
+    "created_at": "2026-11-07T12:00:00+08:00",
+    "updated_at": "2026-11-07T12:00:00+08:00",
+    "month": "2026-11",
+    "categories": [
+      "credit_hours"
+    ],
+    "is_full": false
+  },
+  {
+    "event_id": "host_submission-44f71c8987a1",
+    "activity_id": "SAMPLE-A012",
+    "title": "校園黑客松 2026",
+    "host": "資訊工程學系",
+    "description": "【範例資料】校園黑客松 2026。此筆為開發測試用假資料。",
+    "audience": "全部學生",
+    "start_at": "2026-11-28T09:00:00+08:00",
+    "end_at": "2026-11-29T17:00:00+08:00",
+    "location": "工程五館 E6",
+    "mode": "onsite",
+    "registration_method": "external",
+    "registration_url": "https://example.com/fomoless-sample/form-12",
+    "registration_start": "2026-11-01T00:00:00+08:00",
+    "registration_end": "2026-11-25T23:59:00+08:00",
+    "capacity": 100,
+    "registered_count": 58,
+    "tags": [
+      "黑客松",
+      "競賽",
+      "免費便當"
+    ],
+    "learning_passport_hours": [],
+    "soft_skill_hours": [],
+    "perks": "兩天供餐，總獎金 5 萬元",
+    "info_url": "https://example.com/fomoless-sample/12",
+    "source": "host_submission",
+    "source_url": "https://example.com/fomoless-sample/12",
+    "status": "published",
+    "created_at": "2026-11-07T12:00:00+08:00",
+    "updated_at": "2026-11-07T12:00:00+08:00",
+    "month": "2026-11",
+    "categories": [
+      "career",
+      "free_perks"
+    ],
+    "is_full": false
+  },
+  {
+    "event_id": "extension_ncutalk-e88cf376dcc7",
+    "activity_id": "SAMPLE-A013",
+    "title": "攝影社作品聯展",
+    "host": "攝影社",
+    "description": "【範例資料】攝影社作品聯展。此筆為開發測試用假資料。",
+    "audience": "全部學生",
+    "start_at": "2026-11-30T10:00:00+08:00",
+    "end_at": "2026-12-04T17:00:00+08:00",
+    "location": "藝文中心展覽廳",
+    "mode": "onsite",
+    "registration_method": "none",
+    "tags": [
+      "展覽",
+      "人文藝術"
+    ],
+    "learning_passport_hours": [
+      {
+        "category": "人文藝術",
+        "hours": 1.0
+      }
+    ],
+    "learning_passport_condition": "sign_in",
+    "soft_skill_hours": [],
+    "info_url": "https://example.com/fomoless-sample/13",
+    "source": "extension_ncutalk",
+    "source_url": "https://example.com/fomoless-sample/13",
+    "status": "published",
+    "created_at": "2026-11-07T12:00:00+08:00",
+    "updated_at": "2026-11-07T12:00:00+08:00",
+    "month": "2026-11",
+    "categories": [
+      "performance",
+      "credit_hours"
+    ],
+    "is_full": false
+  },
+  {
+    "event_id": "manual-7988cb731b15",
+    "activity_id": "SAMPLE-A014",
+    "title": "企業參訪：雲端資料中心",
+    "host": "管理學院",
+    "description": "【範例資料】企業參訪：雲端資料中心。此筆為開發測試用假資料。",
+    "audience": "全部學生",
+    "start_at": "2026-12-02T13:00:00+08:00",
+    "end_at": "2026-12-02T17:30:00+08:00",
+    "location": "集合地點：中大正門",
+    "mode": "onsite",
+    "registration_method": "portal",
+    "registration_start": "2026-11-10T09:00:00+08:00",
+    "registration_end": "2026-11-28T17:00:00+08:00",
+    "capacity": 40,
+    "registered_count": 40,
+    "tags": [
+      "企業參訪",
+      "自我探索與生涯規劃"
+    ],
+    "learning_passport_hours": [
+      {
+        "category": "自我探索與生涯規劃",
+        "hours": 3.0
+      }
+    ],
+    "learning_passport_condition": "both",
+    "soft_skill_hours": [],
+    "perks": "提供交通車",
+    "info_url": "https://example.com/fomoless-sample/14",
+    "source": "manual",
+    "source_url": "https://example.com/fomoless-sample/14",
+    "status": "published",
+    "created_at": "2026-11-07T12:00:00+08:00",
+    "updated_at": "2026-11-07T12:00:00+08:00",
+    "month": "2026-12",
+    "categories": [
+      "career",
+      "credit_hours"
+    ],
+    "is_full": true
+  },
+  {
+    "event_id": "host_submission-834dee66e9f1",
+    "activity_id": "SAMPLE-A015",
+    "title": "冬季草地音樂節",
+    "host": "學生會",
+    "description": "【範例資料】冬季草地音樂節。此筆為開發測試用假資料。",
+    "audience": "全部學生",
+    "start_at": "2026-12-05T17:00:00+08:00",
+    "end_at": "2026-12-05T22:00:00+08:00",
+    "location": "大草皮",
+    "mode": "onsite",
+    "registration_method": "none",
+    "tags": [
+      "音樂節",
+      "演唱會",
+      "抽獎"
+    ],
+    "learning_passport_hours": [],
+    "soft_skill_hours": [],
+    "perks": "攤位與抽獎",
+    "info_url": "https://example.com/fomoless-sample/15",
+    "source": "host_submission",
+    "source_url": "https://example.com/fomoless-sample/15",
+    "status": "published",
+    "created_at": "2026-11-07T12:00:00+08:00",
+    "updated_at": "2026-11-07T12:00:00+08:00",
+    "month": "2026-12",
+    "categories": [
+      "performance",
+      "free_perks"
+    ],
+    "is_full": false
+  },
+  {
+    "event_id": "extension_ncutalk-55daf0620eec",
+    "activity_id": "SAMPLE-A016",
+    "title": "吉他社期末成果展",
+    "host": "吉他社",
+    "description": "【範例資料】吉他社期末成果展。此筆為開發測試用假資料。",
+    "audience": "全部學生",
+    "start_at": "2026-12-11T19:00:00+08:00",
+    "end_at": "2026-12-11T21:30:00+08:00",
+    "location": "中大會館大禮堂",
+    "mode": "onsite",
+    "registration_method": "none",
+    "tags": [
+      "成果發表",
+      "演唱會"
+    ],
+    "learning_passport_hours": [],
+    "soft_skill_hours": [],
+    "info_url": "https://example.com/fomoless-sample/16",
+    "source": "extension_ncutalk",
+    "source_url": "https://example.com/fomoless-sample/16",
+    "status": "draft",
+    "created_at": "2026-11-07T12:00:00+08:00",
+    "updated_at": "2026-11-07T12:00:00+08:00",
+    "month": "2026-12",
+    "categories": [
+      "performance"
+    ],
+    "is_full": false
+  }
+]

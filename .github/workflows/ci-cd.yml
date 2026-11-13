@@ -1,0 +1,87 @@
+# FomoLess CI/CD
+# - 發 PR 到 develop 或 main：跑測試與範本檢查（branch protection 可要求 test 通過才能合併）
+# - 合併到 develop：自動部署 dev 環境（fomoless-dev）
+# - 合併到 main：自動部署 prod 環境（fomoless-prod），可在 GitHub 設定 production 環境需人工核准
+#
+# 需要先完成：AWS 建立 GitHub OIDC 身分提供者與部署角色，並在 repo 設定變數 AWS_DEPLOY_ROLE_ARN
+# （步驟見 docs/deploy-guide.md 第 6 步）
+
+name: CI/CD
+
+on:
+  pull_request:
+    branches: [develop, main]
+  push:
+    branches: [develop, main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  AWS_REGION: ap-east-2
+  PYTHON_VERSION: "3.12"
+
+jobs:
+  test:
+    name: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install dependencies
+        run: |
+          pip install -r backend/webhook/requirements.txt
+          pip install boto3 pytest cfn-lint
+
+      - name: Unit tests
+        run: pytest -q
+
+      - name: Lint SAM template
+        run: cfn-lint template.yaml
+
+  deploy:
+    name: deploy-${{ github.ref_name == 'main' && 'prod' || 'dev' }}
+    needs: test
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    environment: ${{ github.ref_name == 'main' && 'production' || 'development' }}
+    permissions:
+      id-token: write   # 取得 OIDC token 換 AWS 臨時憑證
+      contents: read
+    env:
+      STAGE: ${{ github.ref_name == 'main' && 'prod' || 'dev' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - uses: aws-actions/setup-sam@v2
+        with:
+          use-installer: true
+
+      # Lambda 是 arm64，GitHub 機器是 x86，用 QEMU 模擬才能在容器裡打包 arm64 套件
+      - uses: docker/setup-qemu-action@v3
+        with:
+          platforms: arm64
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Build
+        run: sam build --config-env "$STAGE"
+
+      - name: Deploy
+        run: sam deploy --config-env "$STAGE" --no-confirm-changeset --no-fail-on-empty-changeset

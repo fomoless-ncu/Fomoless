@@ -1,0 +1,2 @@
+line-bot-sdk==3.26.0
+# boto3 is provided by the Lambda runtime; install it locally for tests: pip install boto3
