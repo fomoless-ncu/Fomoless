@@ -1,0 +1,135 @@
+# =====================================================================
+# FomoLess SAM 範本
+#
+# 這個檔案用文字描述 FomoLess 需要的所有 AWS 資源。
+# 執行 `sam build` + `sam deploy` 後，AWS 會依照這份描述建立一整組資源（稱為 Stack）。
+# 之後修改這個檔案再部署，AWS 會自動算出差異，只更新有變動的部分。
+#
+# 目前建立的資源：
+#   1. LineWebhookFunction：處理 LINE 訊息的 Lambda（程式在 backend/webhook/app.py）
+#   2. HTTP API：自動建立的 API Gateway 網址（POST /webhook），LINE 會把訊息送到這裡
+#   3. WebhookLogGroup：Lambda 的日誌，保留 14 天
+#   4. EventsTable：存活動資料的 DynamoDB 資料表
+# =====================================================================
+
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31   # 宣告這是 SAM 範本，AWS 會把它轉成完整的 CloudFormation
+Description: FomoLess - NCU campus events LINE bot (M1 skeleton)
+
+# ---------------------------------------------------------------------
+# 參數：部署時可以傳入的值。samconfig.toml 會依環境帶入 Stage=dev 或 Stage=prod，
+# 同一份範本就能建出 dev 和 prod 兩套互不干擾的環境。
+# ---------------------------------------------------------------------
+Parameters:
+  Stage:
+    Type: String
+    AllowedValues: [dev, prod]
+    Default: dev
+    Description: Deployment environment
+
+# ---------------------------------------------------------------------
+# 全域設定：所有 Lambda 函式共用，之後新增爬蟲、推播等函式就不用重複寫
+# ---------------------------------------------------------------------
+Globals:
+  Function:
+    Runtime: python3.12       # 程式語言版本
+    Architectures: [arm64]    # 使用 AWS Graviton（ARM）處理器，比 x86 便宜
+    MemorySize: 512           # 記憶體 512 MB；Lambda 依「記憶體 × 執行時間」計費
+    Timeout: 15               # 單次執行最長 15 秒，超過就強制結束，避免卡住一直計費
+    LoggingConfig:
+      LogFormat: JSON         # 日誌用 JSON 格式，方便在 CloudWatch 搜尋
+    Environment:
+      Variables:              # 傳給程式的環境變數，app.py 用 os.environ 讀取
+        STAGE: !Ref Stage                       # dev 或 prod
+        EVENTS_TABLE: !Ref EventsTable          # 活動資料表的名稱（!Ref 會自動帶入下面建立的資料表）
+        SSM_PREFIX: !Sub /fomoless/${Stage}     # 金鑰在 Parameter Store 的路徑，例如 /fomoless/dev
+        LINE_CHANNEL_SECRET: ""                 # 本機測試用（sam local 讀 env.json）；部署到 AWS 時是空的，程式會改讀 Parameter Store
+        LINE_CHANNEL_ACCESS_TOKEN: ""           # 同上
+
+Resources:
+  # -------------------------------------------------------------------
+  # 1. LINE Webhook 的 Lambda 函式
+  # -------------------------------------------------------------------
+  LineWebhookFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub fomoless-${Stage}-line-webhook   # 在 AWS 主控台看到的名稱
+      CodeUri: backend/webhook/        # 程式碼所在資料夾，sam build 會把它和 requirements.txt 的套件一起打包
+      Handler: app.handler             # 進入點：app.py 裡的 handler 函式
+      Description: Receives LINE webhook events and replies to users
+
+      # 權限：只給這個函式需要的最小權限（SAM 會自動替它建立專屬的 IAM 角色）
+      Policies:
+        - DynamoDBReadPolicy:          # 只能「讀」活動資料表，不能寫入或刪除
+            TableName: !Ref EventsTable
+        - SSMParameterReadPolicy:      # 只能讀 /fomoless/{Stage}/ 底下的金鑰
+            ParameterName: !Sub fomoless/${Stage}/*
+
+      # 觸發方式：收到 HTTP 請求時執行
+      Events:
+        Webhook:
+          Type: HttpApi                # SAM 會自動建立一個 API Gateway（HTTP API）
+          Properties:
+            Path: /webhook             # 網址路徑
+            Method: POST               # LINE 用 POST 送事件
+
+  # -------------------------------------------------------------------
+  # 2. 日誌群組：預設 Lambda 日誌會永久保存（一直累積費用），這裡設定只保留 14 天
+  # -------------------------------------------------------------------
+  WebhookLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /aws/lambda/fomoless-${Stage}-line-webhook   # 必須和上面的 FunctionName 對應
+      RetentionInDays: 14
+
+  # -------------------------------------------------------------------
+  # 3. 活動資料表（DynamoDB）
+  #    一筆資料 = 一個活動場次，欄位定義見 shared/models.py
+  # -------------------------------------------------------------------
+  EventsTable:
+    Type: AWS::DynamoDB::Table
+    DeletionPolicy: Retain             # 就算刪除整個 Stack（sam delete），資料表也會保留，避免誤刪資料
+    UpdateReplacePolicy: Retain        # 更新時若需要重建資料表，舊表也會保留
+    Properties:
+      TableName: !Sub fomoless-${Stage}-events
+      BillingMode: PAY_PER_REQUEST     # On-Demand：依讀寫次數計費，沒人用就幾乎不收錢
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true   # 自動備份，可還原到過去 35 天內的任一時間點
+
+      # 只需要宣告「當作主鍵或索引」的欄位，其他欄位（title、location…）不用事先定義
+      AttributeDefinitions:
+        - AttributeName: event_id
+          AttributeType: S             # S = 字串
+        - AttributeName: month
+          AttributeType: S
+        - AttributeName: start_at
+          AttributeType: S
+
+      # 主鍵：每筆活動用 event_id 唯一識別
+      KeySchema:
+        - AttributeName: event_id
+          KeyType: HASH
+
+      # 次要索引（GSI）：讓我們能用「月份 + 開始時間」快速查詢，例如「本週活動」
+      # app.py 的 find_events_this_week() 就是用這個索引查詢
+      GlobalSecondaryIndexes:
+        - IndexName: month-start_at-index
+          KeySchema:
+            - AttributeName: month       # 先依月份分組，例如 2026-11
+              KeyType: HASH
+            - AttributeName: start_at    # 同一個月內依開始時間排序，可以查時間範圍
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL          # 查詢結果包含所有欄位
+
+# ---------------------------------------------------------------------
+# 輸出：部署完成後印在終端機上的資訊
+# ---------------------------------------------------------------------
+Outputs:
+  WebhookUrl:
+    Description: Paste into LINE Developers Console > Messaging API > Webhook URL
+    # ServerlessHttpApi 是 SAM 自動建立的 API Gateway；組出完整的 Webhook 網址
+    Value: !Sub https://${ServerlessHttpApi}.execute-api.${AWS::Region}.amazonaws.com/webhook
+  EventsTableName:
+    Description: DynamoDB events table
+    Value: !Ref EventsTable
