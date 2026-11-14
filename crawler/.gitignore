@@ -1,0 +1,8 @@
+ncu_cookies.txt
+*.cookies
+.env
+debug/
+output/
+seen_ids.json
+crawl.log
+__pycache__/
