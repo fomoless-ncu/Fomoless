@@ -234,7 +234,15 @@ class Event(BaseModel):
             return {k: v for k, v in data.items() if k not in ("month", "categories", "is_full")}
         return data
 
-    @field_validator("start_at", "end_at", "registration_start", "registration_end", "created_at", "updated_at", "scraped_at")
+    @field_validator(
+        "start_at",
+        "end_at",
+        "registration_start",
+        "registration_end",
+        "created_at",
+        "updated_at",
+        "scraped_at"
+    )
     @classmethod
     def _to_taipei(cls, v: datetime | None) -> datetime | None:
         if v is None:
