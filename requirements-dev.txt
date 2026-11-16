@@ -5,4 +5,6 @@
 pydantic==2.14.3   # shared/models.py 直接使用，不再靠 line-bot-sdk 間接安裝
 boto3              # Lambda 執行環境內建；本機測試、seed 腳本需要
 pytest
+requests          # crawler/portal_activity_crawler.py（iNCU 爬蟲）的測試需要
+beautifulsoup4    # 同上
 cfn-lint
