@@ -18,7 +18,8 @@ import base64       # 解碼 API Gateway 可能用 base64 包裝的請求內容
 import json
 import logging      # 寫日誌，可用 `sam logs` 或 CloudWatch 查看
 import os           # 讀取環境變數（template.yaml 裡設定的 EVENTS_TABLE 等）
-from datetime import datetime, timezone
+import re
+from datetime import datetime, timedelta, timezone
 from functools import lru_cache  # 快取：同一個 Lambda 執行環境內，金鑰只需要讀一次
 
 import boto3        # AWS 官方 Python SDK，用來存取 DynamoDB、Parameter Store
@@ -36,6 +37,9 @@ from linebot.v3.webhooks import FollowEvent, MessageEvent, TextMessageContent
 
 from week import has_ended, months_between, query_bounds, week_range  # 同資料夾的 week.py：計算「本週」範圍（台灣時間）
 
+from llm.activity_query import ActivityQuery, ActivityQueryParser
+from llm.factory import create_query_parser
+
 # ---------- 全域設定 ----------
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
@@ -46,6 +50,10 @@ SSM_PREFIX = os.environ.get("SSM_PREFIX", "/fomoless/dev")     # 金鑰在 Param
 
 # 訊息中包含任一個關鍵字，就回覆本週活動
 WEEK_KEYWORDS = ("本週", "這週", "本周", "這周", "活動")
+WEEK_COMMANDS = {
+    *WEEK_KEYWORDS,
+    "本週活動", "這週活動", "本周活動", "這周活動",
+}
 
 # 固定的回覆文字
 WELCOME_TEXT = (
@@ -86,12 +94,20 @@ def get_line_config() -> Configuration:
     """回覆訊息用的設定：用 Channel access token 呼叫 LINE API。"""
     return Configuration(access_token=get_secret("line-channel-access-token"))
 
+@lru_cache(maxsize=1)
+def get_query_parser() -> ActivityQueryParser | None:
+    """依供應商設定建立並快取活動查詢解析器。"""
+    return create_query_parser(get_secret)
 
 # =====================================================================
 # 二、查詢活動
 # =====================================================================
-def find_events_this_week(now: datetime | None = None) -> list[dict]:
-    """從 DynamoDB 查出接下來 7 天、已發布的活動，依開始時間排序。
+def find_events_this_week(
+    now: datetime | None = None,
+    *,
+    period: str = "this_week",
+) -> list[dict]:
+    """從 DynamoDB 查出本週或下週已發布的活動，依開始時間排序。
 
     查詢方式：用 template.yaml 定義的索引 month-start_at-index
       - 先依「月份」（例如 2026-11）找到那個月的活動
@@ -104,6 +120,12 @@ def find_events_this_week(now: datetime | None = None) -> list[dict]:
         return []
     now = now or datetime.now(timezone.utc)
     start, end = week_range(now)
+
+    if period == "next_week":
+        # 從今天零時移到下週一，再取完整七天。
+        start += timedelta(days=7 - start.weekday())
+        end = start + timedelta(days=7)
+
     low, high = query_bounds(start, end)  # BETWEEN 兩端都包含，上界取第 7 天 23:59:59
     table = boto3.resource("dynamodb").Table(EVENTS_TABLE)
     items: list[dict] = []
@@ -151,11 +173,14 @@ def format_event_line(e: dict) -> str:
     return line + ("\n  " + "｜".join(extras) if extras else "")
 
 
-def format_events(events: list[dict]) -> str:
+def format_events(
+    events: list[dict],
+    label: str = "接下來 7 天",
+) -> str:
     """把活動清單組成一則訊息；最多列 8 筆，避免訊息太長。"""
     if not events:
-        return "接下來 7 天還沒有收錄到活動，之後再來看看！"
-    lines = ["📅 接下來 7 天的活動："]
+        return f"{label}還沒有收錄到活動，之後再來看看！"
+    lines = [f"📅 {label}的活動："]
     lines.extend(format_event_line(e) for e in events[:8])
     if len(events) > 8:
         lines.append(f"…還有 {len(events) - 8} 個活動")
@@ -165,6 +190,123 @@ def format_events(events: list[dict]) -> str:
 # =====================================================================
 # 四、回覆學生
 # =====================================================================
+def activity_has_perk(event: dict, perk: str) -> bool:
+    """從福利說明與既有標籤比對福利，排除明確否定該福利的文字。"""
+    perk = perk.strip()
+    if not perk:
+        return False
+
+    description = event.get("perks") or ""
+    denied_perk = perk.removeprefix("免費") or perk
+    negative = (
+        rf"(?:不(?:會)?(?:提供|供應|含|附贈)|未(?:提供|供應)|沒有|無)"
+        rf"\s*(?:免費)?{re.escape(denied_perk)}"
+    )
+    if re.search(negative, description, flags=re.IGNORECASE):
+        return False
+
+    expected = perk.casefold()
+    return expected in description.casefold() or any(
+        expected in tag.casefold() for tag in (event.get("tags") or [])
+    )
+
+
+def filter_events(
+    events: list[dict],
+    query: ActivityQuery,
+) -> list[dict]:
+    """依文字、代碼、福利及時數類別篩選，同一場次須符合所有條件。"""
+    matched = events
+
+    # 名稱、單位、講者與地點的文字包含條件
+    for field in ("title", "host", "speaker", "location"):
+        expected = getattr(query, field)    # 依欄位名稱取得查詢值
+        # 使用者有指定這個條件時才篩選
+        if expected:
+            expected = expected.strip().casefold()
+
+            matched = [
+                event
+                for event in matched
+                if expected in (event.get(field) or "").casefold()
+            ]
+    # 活動形式、報名方式與護照認證方式
+    for field in (
+        "mode",
+        "registration_method",
+        "learning_passport_condition",
+    ):
+        expected = getattr(query, field)
+
+        if expected is not None:
+            matched = [
+                event
+                for event in matched
+                if event.get(field) == expected
+            ]
+
+    # 福利條件，同一場次必須提供清單中所有福利
+    for perk in query.perks:
+        matched = [event for event in matched if activity_has_perk(event, perk)]
+
+    # 分別檢查學習護照與軟實力時數，類別須相同且時數大於零。
+    for query_field, hours_field in (
+        ("learning_passport_category", "learning_passport_hours"),
+        ("soft_skill_category", "soft_skill_hours"),
+    ):
+        category = getattr(query, query_field)
+        if category:
+            matched = [
+                event
+                for event in matched
+                if any(
+                    hour.get("category") == category and (hour.get("hours") or 0) > 0
+                    for hour in (event.get(hours_field) or [])
+                )
+            ]
+
+    return matched
+
+def respond_to_text(text: str) -> str:
+    """解析文字、查詢日期範圍，再篩選符合條件的活動。"""
+    text = text.strip()
+
+    if not text:
+        return HELP_TEXT
+
+    try:
+        # 完整的本週固定指令，直接查詢活動
+        if text in WEEK_COMMANDS:
+            return format_events(find_events_this_week())
+
+        parser = get_query_parser()     # 依設定取得 Azure 或 Gemini 解析器
+
+        # AI 未啟用時，沿用原本的關鍵字查詢
+        if parser is None:
+            if any(keyword in text for keyword in WEEK_KEYWORDS):
+                return format_events(find_events_this_week())
+            return HELP_TEXT
+
+        query = parser.parse(text)      # 將使用者文字解析成 ActivityQuery
+
+        if query.period == "unsupported":
+            return "目前支援本週、下週及已定義的活動條件查詢，請換個方式詢問。"
+
+        # 依解析出的期間查詢資料，再套用其他條件
+        events = find_events_this_week(period=query.period)
+        matched = filter_events(events, query)
+
+        label = "下週" if query.period == "next_week" else "接下來 7 天"
+
+        if not matched:
+            return f"{label}沒有符合查詢條件的活動。"
+
+        return format_events(matched, label=label)
+
+    except Exception as error:
+        logger.warning("Activity query failed: %s", type(error).__name__)
+        return "暫時無法查詢活動，請稍後再試。"
+
 def reply(reply_token: str, text: str) -> None:
     """用 Reply API 回覆一則文字訊息。
 
@@ -184,12 +326,9 @@ def handle_event(event) -> None:
         # 學生加好友（或解除封鎖）
         reply(event.reply_token, WELCOME_TEXT)
     elif isinstance(event, MessageEvent) and isinstance(event.message, TextMessageContent):
-        # 學生傳文字訊息
-        text = event.message.text.strip()
-        if any(k in text for k in WEEK_KEYWORDS):
-            reply(event.reply_token, format_events(find_events_this_week()))
-        else:
-            reply(event.reply_token, HELP_TEXT)
+        # 先產生回覆內容，再交給 LINE Reply API。
+        response_text = respond_to_text(event.message.text)
+        reply(event.reply_token, response_text)
     # 其他事件（貼圖、圖片、封鎖等）目前不處理
 
 
