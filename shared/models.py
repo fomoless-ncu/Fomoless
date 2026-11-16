@@ -177,7 +177,7 @@ class Event(BaseModel):
 
     # 基本資訊
     title: str = Field(min_length=1, max_length=120, description="場次名稱")
-    activity_title: str | None = Field(min_length=1, max_length=120, description="活動名稱")
+    activity_title: str | None = Field(default=None, min_length=1, max_length=120, description="活動名稱")
     host: str = Field(min_length=1, max_length=60, description="承辦單位")
     speaker: str | None = Field(default=None, max_length=100)
     description: str | None = Field(default=None, max_length=3000)
