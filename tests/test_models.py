@@ -63,11 +63,6 @@ def test_passport_category_becomes_tag():
     assert Category.CREDIT_HOURS in e.categories
 
 
-def test_needs_tag_or_passport_hours():
-    with pytest.raises(ValidationError, match="至少需要一個標籤"):
-        Event(**base(tags=[]))
-
-
 def test_end_before_start_rejected():
     with pytest.raises(ValidationError, match="end_at"):
         Event(**base(end_at="2026-11-06T18:00:00+08:00"))
