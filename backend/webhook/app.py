@@ -6,11 +6,11 @@ API Gateway 收到後交給這支 Lambda 處理：
 
     學生傳訊息 → LINE 平台 → API Gateway（POST /webhook）→ 這支 Lambda 的 handler()
       1. 驗證簽章：確認請求真的是 LINE 送來的，不是別人偽造的
-      2. 判斷訊息內容：有「本週」「活動」等關鍵字 → 去 DynamoDB 查接下來 7 天的活動
+      2. 使用 Azure／Gemini 解析文字條件，再查詢及篩選 DynamoDB 活動資料
       3. 用 Reply API 回覆學生（免費，不計入 LINE 訊息額度）
 
 【建議閱讀順序】
-從檔案最下面的 handler() 開始往上看：handler → handle_event → find_events_this_week → format_events
+從檔案最下面的 handler() 開始往上看：handler → handle_event → respond_to_text → filter_events
 """
 
 # ---------- 匯入套件 ----------
@@ -48,19 +48,15 @@ logger.setLevel(logging.INFO)
 EVENTS_TABLE = os.environ.get("EVENTS_TABLE", "")              # 活動資料表名稱，例如 fomoless-dev-events
 SSM_PREFIX = os.environ.get("SSM_PREFIX", "/fomoless/dev")     # 金鑰在 Parameter Store 的路徑前綴
 
-# 訊息中包含任一個關鍵字，就回覆本週活動
+# LLM 無法解析時，用既有關鍵字提供接下來 7 天的活動清單。
 WEEK_KEYWORDS = ("本週", "這週", "本周", "這周", "活動")
-WEEK_COMMANDS = {
-    *WEEK_KEYWORDS,
-    "本週活動", "這週活動", "本周活動", "這周活動",
-}
 
 # 固定的回覆文字
 WELCOME_TEXT = (
     "歡迎加入 FomoLess！\n"
     "輸入「本週活動」看看接下來 7 天有哪些校內活動。"
 )
-HELP_TEXT = "Hello FomoLess！👋\n目前可以輸入「本週活動」查詢接下來 7 天的校內活動，更多功能開發中！"
+HELP_TEXT = "Hello FomoLess！👋\n可以詢問「本週活動」或「下週文學院有便當的活動嗎？」查詢校內活動。"
 
 
 # =====================================================================
@@ -95,7 +91,7 @@ def get_line_config() -> Configuration:
     return Configuration(access_token=get_secret("line-channel-access-token"))
 
 @lru_cache(maxsize=1)
-def get_query_parser() -> ActivityQueryParser | None:
+def get_query_parser() -> ActivityQueryParser:
     """依供應商設定建立並快取活動查詢解析器。"""
     return create_query_parser(get_secret)
 
@@ -268,26 +264,26 @@ def filter_events(
     return matched
 
 def respond_to_text(text: str) -> str:
-    """解析文字、查詢日期範圍，再篩選符合條件的活動。"""
+    """優先用 LLM 解析及篩選活動，解析失敗時嘗試關鍵字備援。"""
     text = text.strip()
 
     if not text:
         return HELP_TEXT
 
     try:
-        # 完整的本週固定指令，直接查詢活動
-        if text in WEEK_COMMANDS:
-            return format_events(find_events_this_week())
-
-        parser = get_query_parser()     # 依設定取得 Azure 或 Gemini 解析器
-
-        # AI 未啟用時，沿用原本的關鍵字查詢
-        if parser is None:
+        try:
+            parser = get_query_parser()     # 依設定取得 Azure 或 Gemini 解析器
+            query = parser.parse(text)      # 將使用者文字解析成 ActivityQuery
+        except Exception as error:
+            logger.warning("Activity parsing failed: %s", type(error).__name__)
+            # 只有 LLM 設定或解析失敗才備援；資料庫失敗由外層處理。
             if any(keyword in text for keyword in WEEK_KEYWORDS):
-                return format_events(find_events_this_week())
-            return HELP_TEXT
-
-        query = parser.parse(text)      # 將使用者文字解析成 ActivityQuery
+                events = find_events_this_week()
+                return (
+                    "暫時無法解析查詢條件，先提供接下來 7 天的活動清單"
+                    "（未套用其他篩選條件）：\n" + format_events(events)
+                )
+            return "暫時無法查詢活動，請稍後再試。"
 
         if query.period == "unsupported":
             return "目前支援本週、下週及已定義的活動條件查詢，請換個方式詢問。"

@@ -18,12 +18,9 @@ def required_setting(name: str) -> str:
 
 def create_query_parser(
     get_secret: Callable[[str], str],
-) -> ActivityQueryParser | None:
-    """依 AI_PROVIDER 建立解析器，未設定時回傳 None。"""
-    provider = os.getenv("AI_PROVIDER", "").strip().lower()
-
-    if not provider:
-        return None
+) -> ActivityQueryParser:
+    """依必要設定 AI_PROVIDER 建立解析器，缺少設定時回報錯誤。"""
+    provider = required_setting("AI_PROVIDER").lower()
 
     if provider == "azure":
         from .azure_query import AzureActivityQueryParser

@@ -136,23 +136,64 @@ def test_invalid_signature_is_rejected(local_services):
     local_services["messaging"].assert_not_called()
 
 
-def test_fixed_command_skips_ai(local_services):
-    """本週固定指令直接查詢並回覆活動。"""
+def test_simple_query_uses_ai(local_services):
+    """即使只問本週活動，也先由 AI 解析查詢條件。"""
+    query = ActivityQuery(period="this_week")
+    local_services["gemini_client"].models.generate_content.return_value.text = query.model_dump_json()
+    local_services["table"].query.return_value = {"Items": []}
+
     assert app.handler(signed_event("本週活動"), None)["statusCode"] == 200
-    local_services["gemini"].assert_not_called()
+    local_services["gemini_client"].models.generate_content.assert_called_once()
     local_services["azure"].assert_not_called()
     local_services["table"].query.assert_called_once()
     local_services["messaging"].return_value.reply_message.assert_called_once()
+    request = local_services["messaging"].return_value.reply_message.call_args.args[0]
+    assert request.messages[0].text == "接下來 7 天沒有符合查詢條件的活動。"
 
 
-def test_ai_failure_sends_retry_message(local_services):
-    """模擬 AI 逾時，LINE 應收到稍後再試的訊息。"""
+def test_missing_provider_uses_keyword_fallback(local_services, monkeypatch):
+    """缺少 AI 設定時仍提供本週清單，並明確說明未套用篩選條件。"""
+    monkeypatch.delenv("AI_PROVIDER")
+
+    assert app.handler(signed_event("本週活動"), None)["statusCode"] == 200
+    request = local_services["messaging"].return_value.reply_message.call_args.args[0]
+    assert "接下來 7 天" in request.messages[0].text
+    assert "未套用其他篩選條件" in request.messages[0].text
+    local_services["table"].query.assert_called_once()
+    local_services["gemini"].assert_not_called()
+    local_services["azure"].assert_not_called()
+
+
+def test_ai_failure_uses_keyword_fallback(local_services):
+    """AI 逾時時提供基本清單，提醒原本的下週與福利條件未套用。"""
     local_services["gemini_client"].models.generate_content.side_effect = TimeoutError()
 
     assert app.handler(signed_event("下週有便當的活動"), None)["statusCode"] == 200
     request = local_services["messaging"].return_value.reply_message.call_args.args[0]
+    assert "暫時無法解析查詢條件" in request.messages[0].text
+    assert "接下來 7 天" in request.messages[0].text
+    assert "未套用其他篩選條件" in request.messages[0].text
+    local_services["table"].query.assert_called_once()
+
+
+def test_ai_failure_without_keyword_sends_retry_message(local_services):
+    """AI 失效且沒有活動關鍵字時，不查詢資料庫，回覆稍後再試。"""
+    local_services["gemini_client"].models.generate_content.side_effect = TimeoutError()
+
+    assert app.handler(signed_event("你好"), None)["statusCode"] == 200
+    request = local_services["messaging"].return_value.reply_message.call_args.args[0]
     assert "暫時無法查詢" in request.messages[0].text
     local_services["dynamodb"].assert_not_called()
+
+
+def test_database_failure_does_not_retry_as_keyword_query(local_services):
+    """AI 成功但資料庫失敗時，回覆錯誤，避免備援重複查詢相同資料庫。"""
+    local_services["table"].query.side_effect = RuntimeError("database unavailable")
+
+    assert app.handler(signed_event("本週活動"), None)["statusCode"] == 200
+    request = local_services["messaging"].return_value.reply_message.call_args.args[0]
+    assert "暫時無法查詢" in request.messages[0].text
+    local_services["table"].query.assert_called_once()
 
 
 def test_empty_database_result(local_services):

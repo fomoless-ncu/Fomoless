@@ -17,12 +17,13 @@ from backend.webhook.llm.factory import create_query_parser
 from shared.models import Mode, PassportCondition, RegistrationMethod
 
 
-def test_factory_without_provider_uses_keyword_fallback(monkeypatch):
-    """未啟用 AI 時回傳 None，且不需要讀取 API 金鑰。"""
+def test_factory_requires_provider(monkeypatch):
+    """缺少供應商設定時回報錯誤，且不讀取 API 金鑰。"""
     monkeypatch.delenv("AI_PROVIDER", raising=False)
     get_secret = Mock()
 
-    assert create_query_parser(get_secret) is None
+    with pytest.raises(ValueError, match="AI_PROVIDER"):
+        create_query_parser(get_secret)
     get_secret.assert_not_called()
 
 
