@@ -79,6 +79,20 @@ class RegistrationMethod(str, Enum):
     NONE = "none"            # 免報名，可逕行參加
 
 
+class RegistrationStatus(str, Enum):
+    OPEN = "open"
+    """開放報名中"""
+
+    CLOSED = "closed"
+    """報名時間已截止"""
+
+    FULL = "full"
+    """已額滿"""
+
+    NOT_STARTED = "not_started"
+    """報名尚未開始，或活動不開放公開報名"""
+
+
 class PassportCondition(str, Enum):
     """學習護照認證條件。"""
 
@@ -159,12 +173,15 @@ class Event(BaseModel):
     # 識別
     event_id: str = Field(min_length=1, max_length=80, description="主鍵（場次層級）；用 make_event_id() 產生")
     activity_id: str | None = Field(default=None, max_length=80, description="所屬活動；同一活動的場次共用")
+    session_id: str | None = Field(default=None, max_length=80, description="場次在 Portal 中的編號")
 
     # 基本資訊
     title: str = Field(min_length=1, max_length=120, description="場次名稱")
+    activity_title: str | None = Field(min_length=1, max_length=120, description="活動名稱")
     host: str = Field(min_length=1, max_length=60, description="承辦單位")
     speaker: str | None = Field(default=None, max_length=100)
     description: str | None = Field(default=None, max_length=3000)
+    image_urls: list[HttpUrl] = Field(default_factory=list, description="附圖網址")
     audience: str | None = Field(default=None, max_length=100, description="參與對象，例如：全部學生")
     contact_email: str | None = Field(default=None, max_length=100, description="單位信箱；不存承辦人姓名")
 
@@ -177,17 +194,22 @@ class Event(BaseModel):
 
     # 報名
     registration_method: RegistrationMethod = RegistrationMethod.NONE
+    registration_status: RegistrationStatus | None = None
     registration_url: HttpUrl | None = None
     registration_start: datetime | None = None
     registration_end: datetime | None = None
     capacity: int | None = Field(default=None, ge=0, description="報名人數上限")
     registered_count: int | None = Field(default=None, ge=0, description="目前報名人數")
+    waitlist_capacity: int | None = Field(default=None, ge=0, description="候補名額上限")
+    waitlist_count: int | None = Field(default=None, ge=0, description="目前候補人數")
 
     # 分類與時數
     tags: list[str] = Field(default_factory=list, max_length=10, description="必須來自 TAG_CATALOG")
+    sdgs_tags: list[str] = Field(default_factory=list, max_length=17, description="SDGs 標籤")
     learning_passport_hours: list[HourEntry] = Field(default_factory=list)
     learning_passport_condition: PassportCondition | None = None
     soft_skill_hours: list[HourEntry] = Field(default_factory=list)
+    hour_tags: list[HourEntry] = Field(default_factory=list, description="來自 Portal 的「時數標籤」")
     perks: str | None = Field(default=None, max_length=200, description="福利說明，例如：前 50 名送便當")
 
     # 連結與素材
@@ -195,11 +217,13 @@ class Event(BaseModel):
     poster_key: str | None = Field(default=None, description="S3 物件路徑，例如 posters/2026/11/xxx.webp")
 
     # 來源與狀態
+    views: int | None = Field(default=None, ge=0, description="瀏覽次數")
     source: Source
     source_url: HttpUrl | None = Field(default=None, description="原始頁面網址，爬蟲去重用")
     status: Status = Status.DRAFT
     created_at: datetime = Field(default_factory=now_taipei)
     updated_at: datetime = Field(default_factory=now_taipei)
+    scraped_at: datetime | None = Field(default=None, description="最後抓取時間")
 
     # ---- 驗證與轉換 ----
     @model_validator(mode="before")
@@ -210,7 +234,7 @@ class Event(BaseModel):
             return {k: v for k, v in data.items() if k not in ("month", "categories", "is_full")}
         return data
 
-    @field_validator("start_at", "end_at", "registration_start", "registration_end", "created_at", "updated_at")
+    @field_validator("start_at", "end_at", "registration_start", "registration_end", "created_at", "updated_at", "scraped_at")
     @classmethod
     def _to_taipei(cls, v: datetime | None) -> datetime | None:
         if v is None:
