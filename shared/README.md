@@ -5,7 +5,7 @@
 | 檔案 | 用途 |
 | --- | --- |
 | `models.py` | `Event` 資料模型（一筆 = 一個場次）、標籤目錄 `TAG_CATALOG`、學習護照類別、Gemini 用的 `PosterExtraction` |
-| `sample_events.json` | 16 筆假場次（2026-11、12 月），含名額、學習護照與軟實力時數，開發時當假資料庫 |
+| `sample_events.json` | 21 筆假場次（2026-11、12 月），含名額、學習護照與軟實力時數，開發時當假資料庫 |
 | `seed.py` | 把假活動寫進 DynamoDB（dev 或本機 DynamoDB Local） |
 
 ## 各組怎麼用

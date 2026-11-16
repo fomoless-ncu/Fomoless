@@ -13,6 +13,7 @@ from shared.models import (  # noqa: E402
     Event,
     PosterExtraction,
     RegistrationMethod,
+    RegistrationStatus,
     Source,
     Status,
     load_sample_events,
@@ -113,3 +114,50 @@ def test_poster_schema_exports():
     schema = PosterExtraction.model_json_schema()
     assert "start_at" in schema["properties"]
     assert "learning_passport_hours" in schema["properties"]
+
+
+def test_new_optional_fields_defaults():
+    e = Event(**base())
+    assert e.session_id is None
+    assert e.activity_title is None
+    assert e.image_urls == []
+    assert e.registration_status is None
+    assert e.sdgs_tags == []
+    assert e.hour_tags == []
+    assert e.views is None
+    assert e.scraped_at is None
+
+
+def test_new_optional_fields_populated_and_dynamo_roundtrip():
+    e = Event(**base(
+        session_id="115A03001",
+        activity_title="前瞻系列講座",
+        image_urls=["https://example.com/poster.jpg"],
+        registration_status=RegistrationStatus.OPEN,
+        sdgs_tags=["SDG 4 優質教育"],
+        hour_tags=[{"category": "自我探索與生涯規劃", "hours": 2.0}],
+        views=150,
+        scraped_at="2026-11-12T10:00:00+08:00",
+    ))
+    assert e.session_id == "115A03001"
+    assert e.activity_title == "前瞻系列講座"
+    assert str(e.image_urls[0]) == "https://example.com/poster.jpg"
+    assert e.registration_status == RegistrationStatus.OPEN
+    assert e.sdgs_tags == ["SDG 4 優質教育"]
+    assert e.hour_tags[0].hours == 2.0
+    assert e.views == 150
+    assert e.scraped_at.isoformat() == "2026-11-12T10:00:00+08:00"
+
+    item = e.to_dynamo_item()
+    assert item["session_id"] == "115A03001"
+    assert item["views"] == 150
+    assert Event.from_dynamo_item(item) == e
+
+
+def test_registration_status_values():
+    for status in ("open", "closed", "full", "not_started"):
+        e = Event(**base(registration_status=status))
+        assert e.registration_status == status
+
+    with pytest.raises(ValidationError):
+        Event(**base(registration_status="invalid_status"))
