@@ -126,6 +126,14 @@ def test_new_optional_fields_defaults():
     assert e.hour_tags == []
     assert e.views is None
     assert e.scraped_at is None
+    assert e.waitlist_capacity is None
+    assert e.waitlist_count is None
+
+
+def test_empty_tags_allowed():
+    # 爬蟲資料常推不出標籤，標籤可為空
+    e = Event(**base(tags=[]))
+    assert e.tags == []
 
 
 def test_new_optional_fields_populated_and_dynamo_roundtrip():

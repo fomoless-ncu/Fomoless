@@ -20,7 +20,7 @@ FomoLess｜NCU campus events, pushed to you on LINE by interest tags. 校內活�
 │   └── requirements.txt
 ├── shared/                    # 共用活動資料格式
 │   ├── models.py              #   Event 模型（一筆 = 一個場次）
-│   ├── sample_events.json     #   21 筆假場次
+│   ├── sample_events.json     #   16 筆假場次
 │   └── seed.py                #   把假資料寫進 DynamoDB
 ├── tests/                     # 單元測試（pytest）
 ├── events/make_event.py       # 產生已簽章的 LINE 測試事件（sam local 用）

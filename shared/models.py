@@ -117,7 +117,7 @@ LEARNING_PASSPORT_CATEGORIES: list[str] = [
     "國際視野",
 ]
 
-# 八大軟實力：目前只確認六項，待電算中心提供完整清單
+# 軟實力：真實資料有 20 種，不做驗證（此清單僅供參考）
 SOFT_SKILLS_KNOWN: list[str] = ["跨域整合", "科技應用", "人文關懷", "批判思考", "領導統御", "國際移動"]
 
 
@@ -272,8 +272,6 @@ class Event(BaseModel):
         # 學習護照類別自動帶入標籤，學生訂閱「人文藝術」就會收到
         derived = [h.category for h in self.learning_passport_hours if h.category in TAG_CATALOG]
         self.tags = list(dict.fromkeys(self.tags + derived))
-        if not self.tags:
-            raise ValueError("至少需要一個標籤（或有學習護照時數）")
         return self
 
     # ---- 自動計算的欄位 ----
