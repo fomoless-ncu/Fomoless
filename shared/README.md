@@ -13,6 +13,7 @@
 **爬蟲、電算中心 API 轉接器：產生場次**
 
 ```python
+from datetime import datetime
 from shared.models import Event, HourEntry, RegistrationMethod, Source, make_event_id
 
 event = Event(
@@ -20,7 +21,7 @@ event = Event(
     activity_id="A0001",                       # 同一活動的場次共用
     title="115-1學期客家學院週會",
     host="客家學院",
-    start_at="2026-11-10T10:00:00+08:00",      # 一定要帶時區
+    start_at=datetime.fromisoformat("2026-11-10T10:00:00+08:00"),      # 一定要帶時區
     location="客家學院1樓國際會議廳",
     registration_method=RegistrationMethod.PORTAL,
     capacity=120, registered_count=120,
