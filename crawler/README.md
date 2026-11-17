@@ -41,6 +41,7 @@ activities = crawl()   # list[dict]，所有還沒結束的活動
 | speaker, location, start_at/end_at, registration_start/end, capacity, waitlist_capacity, hour_tags, learning_passport_hours/condition, soft_skill_hours | 內頁場次區塊 |
 | registered_count, waitlist_count | 內頁「報名人數：0 / 80」「備取人數：0 / 0」 |
 | registration_method/url | 場次有 Portal 報名按鈕（含已截止、額滿）→ `portal`，url 為 null；沒有按鈕但有 Google 表單等連結 → `external`，附 url（先找場次說明，沒有才用活動內容）；兩種都沒有 → `none` |
+| register_button | 場次報名按鈕上的原文（例：報名、已截止、取消報名），看不到按鈕就是 null。按鈕依帳號身分顯示（例：限通訊系的活動，其他系學生看不到），所以 `registration_method` 為 `none` 時可以用它追原因 |
 | registration_status | 由 status 轉成：開放報名／已截止／已額滿／尚未開始 |
 | updated_at, location_code | 網頁上沒有，固定 null |
 
