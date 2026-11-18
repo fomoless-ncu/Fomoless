@@ -346,6 +346,7 @@ def build_record(item: dict, d: dict) -> dict:
         "registration_start": d["registration_start"], "registration_end": d["registration_end"],
         "registration_method": method,  # portal／external／none
         "registration_url": reg_url,
+        "register_button": d["button_status"],  # 場次報名按鈕上的原文（例：報名、已截止）；看不到按鈕就是 null，方便追 none 的原因
         "capacity": d["capacity"], "registered_count": d["registered_count"],
         "waitlist_capacity": d["waitlist_capacity"], "waitlist_count": d["waitlist_count"],
         "registration_status": registration_status(status, d["registered_count"], d["capacity"]),
