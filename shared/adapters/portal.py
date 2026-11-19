@@ -84,9 +84,13 @@ def from_portal_crawler(item: dict) -> Event:
         )
         reg_status = None
 
-    reg_count = item.get("registered_count", 0)
+    reg_count = item.get("registered_count")
     capacity = item.get("capacity")
-    if isinstance(reg_count, int) and isinstance(capacity, int) and reg_count > capacity:
+    if (
+        isinstance(reg_count, int)
+        and isinstance(capacity, int)
+        and reg_count > capacity
+    ):
         logger.warning(
             '"registered_count" is greater than "capacity"; using `None` in "capacity" instead'
         )
