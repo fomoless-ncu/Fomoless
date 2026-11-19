@@ -37,7 +37,6 @@ REGISTRATION_STATUS_MAPPING: dict[str, RegistrationStatus] = {
     "未開放報名": RegistrationStatus.NOT_STARTED,
 }
 
-TAG_CATALOG_LIST = TAG_CATALOG.keys()
 TAG_CATALOG_KEYWORDS: dict[str, set[str]] = {
     "講座": {"演講", "論壇"},
     "競賽": {"比賽", "大賽"},
@@ -82,9 +81,7 @@ def from_portal_crawler(item: dict) -> Event:
 
     reg_count = item.get("registered_count", 0)
     capacity = item.get("capacity")
-    if isinstance(capacity, int) and reg_count > capacity:
-        print(
-            'Warning: "registered_count" is greater than "capacity"; using `None` in "capacity" instead'
+    if isinstance(reg_count, int) and isinstance(capacity, int) and reg_count > capacity:
         logger.warning(
             '"registered_count" is greater than "capacity"; using `None` in "capacity" instead'
         )
@@ -124,7 +121,7 @@ def from_portal_crawler(item: dict) -> Event:
     tags: list[str] = []
     combined_title = item.get("session_name", "") + "；" + item.get("title", "")
     # 1. check by catalog name
-    for catalog in TAG_CATALOG_LIST:
+    for catalog in TAG_CATALOG.keys():
         if catalog in combined_title:
             tags.append(catalog)
     # 2. check more examples
