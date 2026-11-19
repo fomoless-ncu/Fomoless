@@ -118,6 +118,7 @@ def test_portal_link_button_with_form_in_content_is_portal(monkeypatch):
         activity_desc=f"校外人士請填表單 {FORM}"))
     assert rec["registration_method"] == "portal"
     assert rec["registration_url"] is None
+    assert rec["register_button"] == "報名"
     assert rec["session_id"] == "115A00001"
 
 
@@ -125,6 +126,7 @@ def test_closed_button_is_still_portal(monkeypatch):
     rec = _record(monkeypatch, _detail_html(button="<button disabled>已截止</button>"))
     assert rec["registration_method"] == "portal"
     assert rec["registration_status"] == "已截止"
+    assert rec["register_button"] == "已截止"
 
 
 def test_no_button_with_form_is_external(monkeypatch):
@@ -144,3 +146,4 @@ def test_no_button_no_form_is_none(monkeypatch):
     rec = _record(monkeypatch, _detail_html(activity_desc="免報名，直接到場"))
     assert rec["registration_method"] == "none"
     assert rec["registration_url"] is None
+    assert rec["register_button"] is None  # 看不到按鈕（例：限特定系所）→ null
