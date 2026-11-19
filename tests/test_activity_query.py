@@ -5,16 +5,22 @@ parametrize 會讓同一個測試套用多組資料，每一組都算一個測�
 patch 會暫時替換 SDK 用戶端，讓測試能指定 API 回應及重現錯誤情況。
 """
 
+import sys
+from pathlib import Path
 from unittest.mock import Mock, patch
 
 import pytest
 from pydantic import ValidationError
 
-from backend.webhook.llm.activity_query import ActivityQuery, QUERY_PROMPT
-from backend.webhook.llm.azure_query import AzureActivityQueryParser
-from backend.webhook.llm.gemini_query import GeminiActivityQueryParser
-from backend.webhook.llm.factory import create_query_parser
-from shared.models import Mode, PassportCondition, RegistrationMethod
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT))  # shared.models
+sys.path.insert(0, str(ROOT / "backend" / "webhook"))  # llm.*，和 app.py 相同的匯入方式
+
+from llm.activity_query import ActivityQuery, QUERY_PROMPT  # noqa: E402
+from llm.azure_query import AzureActivityQueryParser  # noqa: E402
+from llm.gemini_query import GeminiActivityQueryParser  # noqa: E402
+from llm.factory import create_query_parser  # noqa: E402
+from shared.models import Mode, PassportCondition, RegistrationMethod  # noqa: E402
 
 
 def test_factory_requires_provider(monkeypatch):
@@ -141,7 +147,7 @@ def expected_query():
 
 def test_azure_returns_expanded_query(expected_query):
     """確認 Azure 解析器能回傳完整查詢，並將共用模型與提示詞傳給 SDK。"""
-    with patch("backend.webhook.llm.azure_query.OpenAI") as factory:
+    with patch("llm.azure_query.OpenAI") as factory:
         # 對應正式程式的 with OpenAI(...) as client，取得模擬用戶端。
         client = factory.return_value.__enter__.return_value
         # 指定 SDK 已解析的結果，後續 parser.parse() 應將它傳回。
@@ -160,7 +166,7 @@ def test_azure_returns_expanded_query(expected_query):
 
 def test_azure_rejects_missing_parsed_response():
     """模擬 Azure 未提供解析結果，確認解析器以 ValueError 回報失敗。"""
-    with patch("backend.webhook.llm.azure_query.OpenAI") as factory:
+    with patch("llm.azure_query.OpenAI") as factory:
         client = factory.return_value.__enter__.return_value
         client.responses.parse.return_value.output_parsed = None
         parser = AzureActivityQueryParser(
@@ -175,7 +181,7 @@ def test_azure_rejects_missing_parsed_response():
 
 def test_gemini_validates_expanded_query(expected_query):
     """確認 Gemini JSON 回應能轉成完整查詢，且請求使用共用模型的 JSON Schema。"""
-    with patch("backend.webhook.llm.gemini_query.genai.Client") as factory:
+    with patch("llm.gemini_query.genai.Client") as factory:
         client = factory.return_value.__enter__.return_value
         # Gemini 回傳 JSON 文字，解析器需透過 Pydantic 驗證並還原成物件。
         client.models.generate_content.return_value.text = expected_query.model_dump_json()
@@ -200,7 +206,7 @@ def test_gemini_validates_expanded_query(expected_query):
 )
 def test_gemini_rejects_invalid_response(response_text):
     """確認空白、格式錯誤或不符合模型的 Gemini 回應都會被驗證拒絕。"""
-    with patch("backend.webhook.llm.gemini_query.genai.Client") as factory:
+    with patch("llm.gemini_query.genai.Client") as factory:
         client = factory.return_value.__enter__.return_value
         client.models.generate_content.return_value.text = response_text
         parser = GeminiActivityQueryParser(api_key="test-key", model="test-model")
