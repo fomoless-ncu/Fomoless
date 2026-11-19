@@ -54,10 +54,13 @@ def _truncate(val: str | None, max_len: int) -> str | None:
 
 def from_portal_crawler(item: dict) -> Event:
     # preprocessing
-    title = item.get("session_name")
-    if title not in item.get("title", ""):
-        title = f"{item.get("title", "")}｜{title}"
-    title = _truncate(title, 120)
+    activity_title: str | None = item.get("title")
+    session_title: str | None = item.get("session_name")
+    if session_title is None or session_title == "":
+        session_title = activity_title
+    elif isinstance(activity_title, str) and activity_title not in session_title:
+        session_title = f"{activity_title}｜{session_title}"
+    session_title = _truncate(session_title, 120)
 
     audience_str = _truncate(
         "；".join(f"{(AUDIENCE_MAPPING.get(k, k))}：{v}" for k, v in item.get("audience", {}).items()), 100
