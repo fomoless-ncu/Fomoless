@@ -113,3 +113,63 @@ def test_title_combines_activity_and_session_when_not_contained():
     data_b["session_name"] = "第一場：入門介紹"
     event_b = from_portal_crawler(data_b)
     assert event_b.title == "第一場：入門介紹"
+
+
+# 8. pk 缺少時拋出 KeyError，避免靜默覆蓋
+def test_missing_pk_raises_key_error():
+    data = _load_sample("full_2590.json")
+    del data["pk"]
+
+    with pytest.raises(KeyError):
+        from_portal_crawler(data)
+
+
+# 9. session_name 為 None、空字串或不存在時，使用活動名稱 title
+@pytest.mark.parametrize("session_name_value", [None, ""])
+def test_session_name_none_or_empty_falls_back_to_title(session_name_value):
+    data = _load_sample("full_2590.json")
+    data["title"] = "主活動名稱"
+    data["session_name"] = session_name_value
+
+    event = from_portal_crawler(data)
+    assert event.title == "主活動名稱"
+
+
+def test_session_name_missing_falls_back_to_title():
+    data = _load_sample("full_2590.json")
+    data["title"] = "主活動名稱"
+    data.pop("session_name", None)
+
+    event = from_portal_crawler(data)
+    assert event.title == "主活動名稱"
+
+
+# 10. registered_count 為 None 或不存在時，不應拋錯且不應誤填為 0
+def test_registered_count_none_does_not_raise_and_preserves_capacity():
+    data = _load_sample("full_2590.json")
+    data["registered_count"] = None
+    data["capacity"] = 50
+
+    event = from_portal_crawler(data)
+    assert event.registered_count is None
+    assert event.capacity == 50
+
+
+def test_registered_count_missing_is_none():
+    data = _load_sample("full_2590.json")
+    data.pop("registered_count", None)
+
+    event = from_portal_crawler(data)
+    assert event.registered_count is None
+
+
+# 11. audience 與 raw_fields 為 None 時不拋出 AttributeError
+def test_audience_and_raw_fields_none_handled_gracefully():
+    data = _load_sample("full_2590.json")
+    data["audience"] = None
+    data["raw_fields"] = None
+
+    event = from_portal_crawler(data)
+    assert event.audience == ""
+    assert event.description is None
+
