@@ -1,4 +1,5 @@
 import json
+import logging
 from pathlib import Path
 
 from shared.models import (
@@ -42,6 +43,8 @@ TAG_CATALOG_KEYWORDS: dict[str, set[str]] = {
     "競賽": {"比賽", "大賽"},
 }
 
+logger = logging.getLogger(__name__)
+
 
 def _truncate(val: str | None, max_len: int) -> str | None:
     if val is None:
@@ -65,15 +68,15 @@ def from_portal_crawler(item: dict) -> Event:
 
     reg_method = REGISTRATION_METHOD_MAPPING.get(item.get("registration_method", ""))
     if reg_method is None:
-        print(
-            'Warning: "registration_method" is not a valid value; using `RegistrationMethod.NONE` instead'
+        logger.warning(
+            '"registration_method" is not a valid value; using `RegistrationMethod.NONE` instead'
         )
         reg_method = RegistrationMethod.NONE
 
     reg_status = REGISTRATION_STATUS_MAPPING.get(item.get("registration_status", ""))
     if reg_status is None:
-        print(
-            'Warning: "registration_status" is not a valid value; using `None` instead'
+        logger.warning(
+            '"registration_status" is not a valid value; using `None` instead'
         )
         reg_status = None
 
@@ -82,13 +85,15 @@ def from_portal_crawler(item: dict) -> Event:
     if isinstance(capacity, int) and reg_count > capacity:
         print(
             'Warning: "registered_count" is greater than "capacity"; using `None` in "capacity" instead'
+        logger.warning(
+            '"registered_count" is greater than "capacity"; using `None` in "capacity" instead'
         )
         capacity = None
 
     learning_passport_hours: list[HourEntry] = []
     for entry in item.get("learning_passport_hours", []):
         if entry.get("category") not in LEARNING_PASSPORT_CATEGORIES:
-            print(f'Warning: Invalid learning passport category `{entry.get("category")}`; skipping')
+            logger.warning(f'Warning: Invalid learning passport category `{entry.get("category")}`; skipping')
             continue
         learning_passport_hours.append(HourEntry(**entry))
 
@@ -112,7 +117,7 @@ def from_portal_crawler(item: dict) -> Event:
     elif need_other:
         passport_cond = PassportCondition.OTHER
     else:
-        print('Warning: `learning_passport_condition` is not a valid value; using `None` instead')
+        logger.warning('`learning_passport_condition` is not a valid value; using `None` instead')
         passport_cond = None
 
     # simply guess tags by keywords; should be replaced w/ AI in the future?
@@ -183,7 +188,7 @@ def load_from_crawled_data(path: str | None = None) -> list[Event]:
         crawl_data_folder = Path(path)
 
     for filename in crawl_data_folder.iterdir():
-        print(f"Processing file: {filename}")
+        logger.info(f"Processing file: {filename}")
         with open(filename, "r", encoding="utf-8") as file:
             events.append(from_portal_crawler(json.load(file)))
 
