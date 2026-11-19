@@ -62,8 +62,10 @@ def from_portal_crawler(item: dict) -> Event:
         session_title = f"{activity_title}｜{session_title}"
     session_title = _truncate(session_title, 120)
 
+    audience = item.get("audience") or {}
     audience_str = _truncate(
-        "；".join(f"{(AUDIENCE_MAPPING.get(k, k))}：{v}" for k, v in item.get("audience", {}).items()), 100
+        "；".join(f"{(AUDIENCE_MAPPING.get(k, k))}：{v}" for k, v in audience.items()),
+        100,
     )
 
     description = _truncate(item.get("raw_fields", {}).get("活動內容", None), 3000)
