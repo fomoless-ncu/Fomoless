@@ -109,7 +109,9 @@ def from_portal_crawler(item: dict) -> Event:
         passport_cond_str = passport_cond_str.replace("、", "")
         need_sign_in = "簽到" in passport_cond_str
         need_sign_out = "簽退" in passport_cond_str
-        passport_cond_str = passport_cond_str.replace("簽到", "").replace("簽退", "").strip()
+        passport_cond_str = (
+            passport_cond_str.replace("簽到", "").replace("簽退", "").strip()
+        )
         need_other = len(passport_cond_str) > 0
 
     if passport_cond_str is None or not (need_sign_in or need_sign_out or need_other):
@@ -189,7 +191,9 @@ def load_from_crawled_data(path: str | None = None) -> list[Event]:
     events = []
 
     if path is None:
-        crawl_data_folder = Path(__file__).parent.parent.parent / "crawler" / "samples"
+        crawl_data_folder = (
+            Path(__file__).parent.parent.parent / "tests" / "fixtures" / "portal"
+        )
     else:
         crawl_data_folder = Path(path)
 
@@ -203,4 +207,5 @@ def load_from_crawled_data(path: str | None = None) -> list[Event]:
 
 if __name__ == "__main__":
     from pprint import pprint
+
     pprint(load_from_crawled_data())
