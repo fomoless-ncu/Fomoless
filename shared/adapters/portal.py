@@ -190,10 +190,11 @@ def from_portal_crawler(item: dict) -> Event:
 
     # construct Event obj
     event = Event(
-        event_id=make_event_id(Source.CRAWLER_PORTAL, item.get("pk", "")),
+        event_id=make_event_id(Source.CRAWLER_PORTAL, item["pk"]),
+        # use square brackets to raise error if pk is missing
         activity_id=item.get("activity_id"),
         session_id=item.get("session_id"),
-        title=title,
+        title=session_title,
         activity_title=item.get("title"),
         host=item.get("organizer", ""),
         contact_email=None,
