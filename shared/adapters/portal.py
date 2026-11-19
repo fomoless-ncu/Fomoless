@@ -173,7 +173,10 @@ def from_portal_crawler(item: dict) -> Event:
     elif need_other:
         passport_cond = PassportCondition.OTHER
     else:
-        logger.warning('`learning_passport_condition` is not a valid value; using `None` instead')
+        logger.warning(
+            "`learning_passport_condition` is not a valid value (%s); using `None` instead",
+            passport_cond_str,
+        )
         passport_cond = None
 
     # simply guess tags by keywords; should be replaced w/ AI in the future?
@@ -245,7 +248,7 @@ def load_from_crawled_data(path: str | None = None) -> list[Event]:
         crawl_data_folder = Path(path)
 
     for filename in crawl_data_folder.iterdir():
-        logger.info(f"Processing file: {filename}")
+        logger.info("Processing file: %s", filename)
         with open(filename, "r", encoding="utf-8") as file:
             events.append(from_portal_crawler(json.load(file)))
 
