@@ -102,7 +102,8 @@ def from_portal_crawler(item: dict) -> Event:
         100,
     )
 
-    description = _truncate(item.get("raw_fields", {}).get("活動內容", None), 3000)
+    raw_fields = item.get("raw_fields") or {}
+    description = _truncate(raw_fields.get("活動內容", None), 3000)
 
     reg_method = REGISTRATION_METHOD_MAPPING.get(item.get("registration_method", ""))
     if reg_method is None:
@@ -181,7 +182,7 @@ def from_portal_crawler(item: dict) -> Event:
 
     # simply guess tags by keywords; should be replaced w/ AI in the future?
     tags: list[str] = []
-    combined_title = item.get("session_name", "") + "；" + item.get("title", "")
+    combined_title = f"{activity_title or ''}；{session_title or ''}"
     # 1. check by catalog name
     for catalog in TAG_CATALOG.keys():
         if catalog in combined_title:
