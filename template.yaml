@@ -10,6 +10,11 @@
 #   2. HTTP API：自動建立的 API Gateway 網址（POST /webhook），LINE 會把訊息送到這裡
 #   3. WebhookLogGroup：Lambda 的日誌，保留 14 天
 #   4. EventsTable：存活動資料的 DynamoDB 資料表
+#
+# AI 查詢設定：
+#   透過部署參數選擇 Azure／Gemini 與模型；預設使用 Gemini 解析活動查詢。
+#   LLM 失效時，符合關鍵字的訊息改回覆接下來 7 天的基本活動清單。
+#   AI 金鑰由 Parameter Store 讀取，本機 .env 不會自動帶入 Lambda。
 # =====================================================================
 
 AWSTemplateFormatVersion: '2010-09-09'
@@ -26,6 +31,28 @@ Parameters:
     AllowedValues: [dev, prod]
     Default: dev
     Description: Deployment environment
+
+  # 預設沿用目前本機使用的 Gemini，也可透過部署參數切換 Azure。
+  AIProvider:
+    Type: String
+    Default: gemini
+    AllowedValues: [azure, gemini]
+    Description: AI provider used for activity queries
+
+  GeminiModel:
+    Type: String
+    Default: gemini-3.1-flash-lite
+    Description: Gemini model name
+
+  AzureOpenAIBaseUrl:
+    Type: String
+    Default: ""
+    Description: Azure OpenAI API base URL
+
+  AzureOpenAIDeployment:
+    Type: String
+    Default: ""
+    Description: Azure OpenAI deployment name
 
 # ---------------------------------------------------------------------
 # 全域設定：所有 Lambda 函式共用，之後新增爬蟲、推播等函式就不用重複寫
@@ -57,6 +84,17 @@ Resources:
       CodeUri: backend/webhook/        # 程式碼所在資料夾，sam build 會把它和 requirements.txt 的套件一起打包
       Handler: app.handler             # 進入點：app.py 裡的 handler 函式
       Description: Receives LINE webhook events and replies to users
+
+      # 僅將 AI 設定傳給 webhook；其餘環境變數沿用 Globals。
+      Environment:
+        Variables:
+          AI_PROVIDER: !Ref AIProvider
+          GEMINI_MODEL: !Ref GeminiModel
+          AZURE_OPENAI_BASE_URL: !Ref AzureOpenAIBaseUrl
+          AZURE_OPENAI_DEPLOYMENT: !Ref AzureOpenAIDeployment
+          # 本機 SAM 測試可覆寫；雲端留空時改讀 Parameter Store。
+          GEMINI_API_KEY: ""
+          AZURE_OPENAI_API_KEY: ""
 
       # 權限：只給這個函式需要的最小權限（SAM 會自動替它建立專屬的 IAM 角色）
       Policies:
