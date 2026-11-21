@@ -7,12 +7,14 @@
 | `models.py` | `Event` 資料模型（一筆 = 一個場次）、標籤目錄 `TAG_CATALOG`、學習護照類別、Gemini 用的 `PosterExtraction` |
 | `sample_events.json` | 16 筆假場次（2026-11、12 月），含名額、學習護照與軟實力時數，開發時當假資料庫 |
 | `seed.py` | 把假活動寫進 DynamoDB（dev 或本機 DynamoDB Local） |
+| `import_portal.py` | 把 Portal 爬蟲 JSON 轉成 `Event` 匯入 DynamoDB，可順便刪掉假資料 |
 
 ## 各組怎麼用
 
 **爬蟲、電算中心 API 轉接器：產生場次**
 
 ```python
+from datetime import datetime
 from shared.models import Event, HourEntry, RegistrationMethod, Source, make_event_id
 
 event = Event(
@@ -20,7 +22,7 @@ event = Event(
     activity_id="A0001",                       # 同一活動的場次共用
     title="115-1學期客家學院週會",
     host="客家學院",
-    start_at="2026-11-10T10:00:00+08:00",      # 一定要帶時區
+    start_at=datetime.fromisoformat("2026-11-10T10:00:00+08:00"),      # 一定要帶時區
     location="客家學院1樓國際會議廳",
     registration_method=RegistrationMethod.PORTAL,
     capacity=120, registered_count=120,
@@ -87,3 +89,20 @@ python -m shared.seed --table fomoless-dev-events --local --create
 # AWS dev 資料表（管理員）
 python -m shared.seed --table fomoless-dev-events
 ```
+
+## 匯入真實 Portal 資料
+
+```bash
+# 先 dry-run：只轉換、印出成功／跳過筆數，不連 AWS
+python -m shared.import_portal output/portal_activities.json --dry-run
+
+# 匯入 dev，並刪掉 sample_events.json 的 16 筆假資料（管理員）
+python -m shared.import_portal output/portal_activities.json --table fomoless-dev-events --delete-samples
+```
+
+- 轉換失敗的資料記 warning 並跳過，不會中斷整批。
+- `description` 寫入前會用 `shared/privacy.py` 遮蔽信箱、電話、分機、承辦人稱謂。
+- `event_id` 由爬蟲的 `pk` 固定產生，重跑只會覆寫，不會重複。
+- 假資料依 `event_id` 刪除（假資料裡也有 `crawler_portal` 來源，不能用來源判斷）。
+- 名稱含 `prod` 的資料表要加 `--allow-prod` 才能寫入。
+- 完整爬蟲 JSON 可能含個資，**不要 commit**。
