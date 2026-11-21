@@ -1,2 +1,14 @@
 line-bot-sdk==3.26.0
 # boto3 is provided by the Lambda runtime; install it locally for tests: pip install boto3
+
+# Azure OpenAI SDK
+openai==3.49.0
+
+# Gemini SDK
+google-genai==3.0.0
+
+# Shared structured query validation
+pydantic==2.14.3
+
+# boto3 is provided by the Lambda runtime.
+# Install local development dependencies through requirements-dev.txt.
