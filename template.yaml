@@ -10,6 +10,7 @@
 #   2. HTTP API：自動建立的 API Gateway 網址（POST /webhook），LINE 會把訊息送到這裡
 #   3. WebhookLogGroup：Lambda 的日誌，保留 14 天
 #   4. EventsTable：存活動資料的 DynamoDB 資料表
+#   5. IngestBucket：爬蟲上傳 JSON 的 S3 bucket（之後由 Lambda 轉換寫入 EventsTable）
 # =====================================================================
 
 AWSTemplateFormatVersion: '2010-09-09'
@@ -122,6 +123,60 @@ Resources:
           Projection:
             ProjectionType: ALL          # 查詢結果包含所有欄位
 
+  # -------------------------------------------------------------------
+  # 4. 爬蟲上傳用的 S3 bucket（ingest bucket）
+  #    組員電腦跑爬蟲（cookie 不離開本機）→ 只把 JSON 上傳到這裡 → 之後由 Lambda 轉換寫入 EventsTable
+  #    上傳權限不在這份範本：IAM 使用者 Crawler-* 掛的是手動建立的政策 FomoLess-CrawlerUpload，
+  #    只允許 s3:PutObject 到 fomoless-dev-ingest-<帳號ID>/portal/*.json，所以 bucket 名稱格式不能改。
+  # -------------------------------------------------------------------
+  IngestBucket:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Retain             # 刪除 Stack 時保留 bucket 和裡面的原始資料
+    UpdateReplacePolicy: Retain
+    Properties:
+      # bucket 名稱全球唯一，加上帳號 ID 避免撞名；必須和 FomoLess-CrawlerUpload 政策的 Resource 一致
+      BucketName: !Sub fomoless-${Stage}-ingest-${AWS::AccountId}
+      PublicAccessBlockConfiguration:  # 完全封鎖公開存取
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      OwnershipControls:               # 停用 ACL，物件一律屬於 bucket 擁有者
+        Rules:
+          - ObjectOwnership: BucketOwnerEnforced
+      BucketEncryption:                # 伺服器端加密（S3 管理的金鑰，免費）
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      LifecycleConfiguration:
+        Rules:
+          - Id: ExpireRawCrawlerJson   # 原始 JSON 處理完就沒用了，90 天後自動刪除，避免一直累積
+            Status: Enabled
+            ExpirationInDays: 90
+          - Id: AbortIncompleteUploads # 上傳到一半中斷的殘檔 1 天後清掉
+            Status: Enabled
+            AbortIncompleteMultipartUpload:
+              DaysAfterInitiation: 1
+
+  # 只接受 HTTPS 連線，拒絕明文 HTTP 存取
+  IngestBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref IngestBucket
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: DenyInsecureTransport
+            Effect: Deny
+            Principal: '*'
+            Action: 's3:*'
+            Resource:
+              - !GetAtt IngestBucket.Arn
+              - !Sub ${IngestBucket.Arn}/*
+            Condition:
+              Bool:
+                aws:SecureTransport: 'false'
+
 # ---------------------------------------------------------------------
 # 輸出：部署完成後印在終端機上的資訊
 # ---------------------------------------------------------------------
@@ -133,3 +188,6 @@ Outputs:
   EventsTableName:
     Description: DynamoDB events table
     Value: !Ref EventsTable
+  IngestBucketName:
+    Description: S3 bucket for crawler JSON uploads (upload to portal/*.json)
+    Value: !Ref IngestBucket
