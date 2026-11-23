@@ -92,7 +92,7 @@ def from_portal_crawler(item: dict) -> Event:
     session_title: str | None = item.get("session_name")
     if session_title is None or session_title == "":
         session_title = activity_title
-    elif isinstance(activity_title, str) and session_title not in activity_title:
+    elif isinstance(activity_title, str) and activity_title not in session_title:
         session_title = f"{activity_title}｜{session_title}"
     session_title = _truncate(session_title, 120)
 
