@@ -109,10 +109,10 @@ def test_title_combines_activity_and_session_when_not_contained():
 
     # 情境 B：場次名稱已包含在活動名稱中（或兩者相同） -> 不重複拼接
     data_b = data.copy()
-    data_b["title"] = "AI 系列講座（第一場：入門介紹）"
-    data_b["session_name"] = "第一場：入門介紹"
+    data_b["title"] = "AI 系列講座"
+    data_b["session_name"] = "AI 系列講座（第一場：入門介紹）"
     event_b = from_portal_crawler(data_b)
-    assert event_b.title == "第一場：入門介紹"
+    assert event_b.title == "AI 系列講座（第一場：入門介紹）"
 
 
 # 8. pk 缺少時拋出 KeyError，避免靜默覆蓋
