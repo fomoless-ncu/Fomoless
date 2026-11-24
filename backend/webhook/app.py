@@ -29,12 +29,14 @@ from linebot.v3.exceptions import InvalidSignatureError
 from linebot.v3.messaging import (                        # LINE SDK：送出回覆訊息
     ApiClient,
     Configuration,
+    FlexMessage,
     MessagingApi,
     ReplyMessageRequest,
     TextMessage,
 )
 from linebot.v3.webhooks import FollowEvent, MessageEvent, TextMessageContent
 
+from activity_flex import build_activity_reply
 from week import has_ended, months_between, query_bounds, week_range  # 同資料夾的 week.py：計算「本週」範圍（台灣時間）
 
 from llm.activity_query import ActivityQuery, ActivityQueryParser
@@ -263,7 +265,7 @@ def filter_events(
 
     return matched
 
-def respond_to_text(text: str) -> str:
+def respond_to_text(text: str) -> str | list[FlexMessage | TextMessage]:
     """優先用 LLM 解析及篩選活動，解析失敗時嘗試關鍵字備援。"""
     text = text.strip()
 
@@ -297,22 +299,24 @@ def respond_to_text(text: str) -> str:
         if not matched:
             return f"{label}沒有符合查詢條件的活動。"
 
+        if text == "本週活動":
+            return build_activity_reply(matched, label)
         return format_events(matched, label=label)
 
     except Exception as error:
         logger.warning("Activity query failed: %s", type(error).__name__)
         return "暫時無法查詢活動，請稍後再試。"
 
-def reply(reply_token: str, text: str) -> None:
-    """用 Reply API 回覆一則文字訊息。
+def reply(reply_token: str, content: str | list[FlexMessage | TextMessage]) -> None:
+    """用 Reply API 回覆文字或活動卡片。
 
     reply_token 是 LINE 隨事件附上的「回覆憑證」，只能用一次、而且要在短時間內使用。
     用 Reply API 回覆不計入官方帳號的每月訊息額度；主動推播（Push API）才會計費。
-    之後 Gabe 要改成 Flex Message（卡片式訊息），就是改這裡的 messages。
     """
+    messages = [TextMessage(text=content)] if isinstance(content, str) else content
     with ApiClient(get_line_config()) as api_client:
         MessagingApi(api_client).reply_message(
-            ReplyMessageRequest(reply_token=reply_token, messages=[TextMessage(text=text)])
+            ReplyMessageRequest(reply_token=reply_token, messages=messages)
         )
 
 
@@ -323,8 +327,8 @@ def handle_event(event) -> None:
         reply(event.reply_token, WELCOME_TEXT)
     elif isinstance(event, MessageEvent) and isinstance(event.message, TextMessageContent):
         # 先產生回覆內容，再交給 LINE Reply API。
-        response_text = respond_to_text(event.message.text)
-        reply(event.reply_token, response_text)
+        content = respond_to_text(event.message.text)
+        reply(event.reply_token, content)
     # 其他事件（貼圖、圖片、封鎖等）目前不處理
 
 

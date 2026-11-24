@@ -19,10 +19,12 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "backend" / "webhoo
 
 import app
 from llm.activity_query import ActivityQuery
+from shared.adapters.portal import from_portal_crawler
 from week import week_range
 
 
 SECRET = "local-test-channel-secret"
+TEST_NOW = datetime(2026, 11, 18, 4, tzinfo=timezone.utc)
 
 
 def signed_event(text: str, encoded: bool = False) -> dict:
@@ -67,11 +69,13 @@ def local_services(monkeypatch):
     for name, value in settings.items():
         monkeypatch.setenv(name, value)
     monkeypatch.setattr(app, "EVENTS_TABLE", "local-test-events")
+    # These cases expect one query per period, so use weeks within a single month.
+    monkeypatch.setattr(app, "datetime", Mock(wraps=datetime, now=Mock(return_value=TEST_NOW)))
     caches = (app.get_secret, app.get_parser, app.get_line_config, app.get_query_parser)
     for cached in caches:
         cached.cache_clear()
 
-    start, _ = week_range(datetime.now(timezone.utc))
+    start, _ = week_range(TEST_NOW)
     next_monday = start + timedelta(days=7 - start.weekday())
     matching = {
         "title": "文學院講座", "host": "文學院", "perks": "提供便當",
@@ -149,6 +153,96 @@ def test_simple_query_uses_ai(local_services):
     local_services["messaging"].return_value.reply_message.assert_called_once()
     request = local_services["messaging"].return_value.reply_message.call_args.args[0]
     assert request.messages[0].text == "接下來 7 天沒有符合查詢條件的活動。"
+
+
+def test_this_week_renders_portal_activity_as_flex(local_services):
+    path = Path(__file__).parent / "fixtures" / "portal" / "learning_passport_2621.json"
+    raw = json.loads(path.read_text(encoding="utf-8"))
+    tomorrow, _ = week_range(TEST_NOW + timedelta(days=1))
+    raw["start_at"] = (tomorrow + timedelta(hours=13)).isoformat()
+    raw["end_at"] = (tomorrow + timedelta(hours=17)).isoformat()
+    event = from_portal_crawler(raw).to_dynamo_item()
+    local_services["table"].query.return_value = {"Items": [event]}
+    local_services["gemini_client"].models.generate_content.return_value.text = (
+        ActivityQuery(period="this_week").model_dump_json()
+    )
+
+    assert app.handler(signed_event("本週活動"), None)["statusCode"] == 200
+    request = local_services["messaging"].return_value.reply_message.call_args.args[0]
+    message = request.messages[0].to_dict()
+    assert message["type"] == "flex"
+    card = message["contents"]
+    assert card["header"]["backgroundColor"] == "#800020"
+    assert card["body"]["backgroundColor"] == "#FFFFFF"
+    lines = [part["text"] for part in card["body"]["contents"] if part["type"] == "text"]
+    assert lines == [
+        "當人文學遇見AI：研究方法、知識生產與教學實踐工作坊",
+        f"時間　{tomorrow:%m/%d} 13:00–17:00",
+        "地點　文學一館A-107文學院學士班巢映電影空間",
+        "報名　已截止",
+        "學習護照　人文藝術 3 小時",
+    ]
+    action = card["footer"]["contents"][0]["action"]
+    assert action["label"] == "查看活動"
+    assert action["uri"] == "https://cis.ncu.edu.tw/iNCU/messageNotice/activityManagement/activity/2621"
+
+
+def test_this_week_groups_matching_sessions_in_one_card(local_services):
+    tomorrow, _ = week_range(TEST_NOW + timedelta(days=1))
+    session = {
+        "event_id": "portal-1", "activity_id": "100", "source": "crawler_portal",
+        "activity_title": "CPR 急救訓練", "title": "CPR 第一場",
+        "start_at": (tomorrow + timedelta(hours=9)).isoformat(),
+        "location": "第一教室", "status": "published",
+    }
+    second = {
+        **session, "event_id": "portal-2", "title": "CPR 第二場",
+        "start_at": (tomorrow + timedelta(hours=14)).isoformat(), "location": "第二教室",
+    }
+    other = {
+        **session, "event_id": "manual-1", "activity_id": None, "activity_title": None,
+        "title": "職涯分享", "start_at": (tomorrow + timedelta(days=1, hours=9)).isoformat(),
+        "location": None,
+    }
+    local_services["table"].query.return_value = {"Items": [second, other, session]}
+    local_services["gemini_client"].models.generate_content.return_value.text = (
+        ActivityQuery(period="this_week").model_dump_json()
+    )
+
+    assert app.handler(signed_event("本週活動"), None)["statusCode"] == 200
+    request = local_services["messaging"].return_value.reply_message.call_args.args[0]
+    cards = request.messages[0].to_dict()["contents"]["contents"]
+    assert [card["body"]["contents"][0]["text"] for card in cards] == ["CPR 急救訓練", "職涯分享"]
+    assert "本次查到 2 場" in cards[0]["header"]["contents"][0]["text"]
+    assert f"最近一場　{tomorrow:%m/%d} 09:00" in [part.get("text") for part in cards[0]["body"]["contents"]]
+    assert "地點　第一教室" in [part.get("text") for part in cards[0]["body"]["contents"]]
+    assert not cards[1].get("footer")
+
+
+def test_this_week_counts_hidden_activities_after_grouping(local_services):
+    tomorrow, _ = week_range(TEST_NOW + timedelta(days=1))
+    events = [
+        {
+            "event_id": f"event-{number}",
+            "activity_id": f"activity-{number}",
+            "title": f"活動 {number}",
+            "start_at": (tomorrow + timedelta(hours=number)).isoformat(),
+            "status": "published",
+        }
+        for number in range(9)
+    ]
+    extra_session = {**events[0], "event_id": "extra-session"}
+    local_services["table"].query.return_value = {"Items": [extra_session, *events]}
+    local_services["gemini_client"].models.generate_content.return_value.text = (
+        ActivityQuery(period="this_week").model_dump_json()
+    )
+
+    assert app.handler(signed_event("本週活動"), None)["statusCode"] == 200
+    request = local_services["messaging"].return_value.reply_message.call_args.args[0]
+    cards = request.messages[0].to_dict()["contents"]["contents"]
+    assert len(cards) == 8
+    assert cards[-1]["body"]["contents"][0]["text"] == "活動 7"
+    assert request.messages[1].text == "還有 1 個活動未顯示。"
 
 
 def test_missing_provider_uses_keyword_fallback(local_services, monkeypatch):
