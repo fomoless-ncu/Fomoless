@@ -34,9 +34,14 @@ def test_ingest_bucket_is_retained_on_stack_delete(resources):
     assert resources["IngestBucket"]["DeletionPolicy"] == "Retain"
 
 
-def test_ingest_bucket_expires_raw_json(resources):
+def test_ingest_bucket_expires_raw_json_only_under_portal(resources):
+    # 原始 JSON 未遮蔽個資，30 天內刪除；規則只限 portal/，避免之後放進來的其他檔案被一起刪掉
     rules = resources["IngestBucket"]["Properties"]["LifecycleConfiguration"]["Rules"]
-    assert any(r.get("ExpirationInDays") for r in rules if r["Status"] == "Enabled")
+    expiring = [r for r in rules if r["Status"] == "Enabled" and "ExpirationInDays" in r]
+    assert expiring
+    for rule in expiring:
+        assert rule.get("Prefix") == "portal/"
+        assert rule["ExpirationInDays"] <= 30
 
 
 def test_ingest_bucket_policy_denies_http(resources):

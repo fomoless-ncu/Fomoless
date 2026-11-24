@@ -8,4 +8,4 @@ moto[dynamodb]>=5  # 測試用：模擬 DynamoDB，不連真的 AWS
 pytest
 requests          # crawler/portal_activity_crawler.py（iNCU 爬蟲）的測試需要
 beautifulsoup4    # 同上
-cfn-lint
+cfn-lint==1.60.1   # tests/test_template.py 用到 cfnlint.decode 內部函式，升級前先確認測試沒壞
