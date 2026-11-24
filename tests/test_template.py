@@ -49,3 +49,37 @@ def test_ingest_bucket_policy_denies_http(resources):
     deny = [s for s in statements if s["Effect"] == "Deny"]
     assert deny
     assert deny[0]["Condition"] == {"Bool": {"aws:SecureTransport": "false"}}
+
+
+def _policy_statements(resources):
+    return resources["CrawlerUploadPolicy"]["Properties"]["PolicyDocument"]["Statement"]
+
+
+def test_crawler_upload_policy_only_when_uploaders_given(resources):
+    # prod 不帶 CrawlerUploaders，就不能建出上傳政策
+    assert resources["CrawlerUploadPolicy"]["Condition"] == "HasCrawlerUploaders"
+    assert resources["CrawlerUploadPolicy"]["Properties"]["Users"] == {"Ref": "CrawlerUploaders"}
+
+
+def test_crawler_upload_policy_is_put_only(resources):
+    # 金鑰外流也只能塞檔案進來，不能讀、列出、刪除
+    for statement in _policy_statements(resources):
+        assert statement["Effect"] == "Allow"
+        assert statement["Action"] == "s3:PutObject"
+
+
+def test_crawler_upload_policy_limits_paths_and_extensions(resources):
+    resources_allowed = []
+    for statement in _policy_statements(resources):
+        res = statement["Resource"]
+        resources_allowed += res if isinstance(res, list) else [res]
+    paths = sorted(r["Fn::Sub"] for r in resources_allowed)
+    assert paths == sorted(
+        [
+            "${IngestBucket.Arn}/portal/*.json",
+            "${IngestBucket.Arn}/posters/*.jpg",
+            "${IngestBucket.Arn}/posters/*.jpeg",
+            "${IngestBucket.Arn}/posters/*.png",
+            "${IngestBucket.Arn}/posters/*.webp",
+        ]
+    )

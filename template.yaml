@@ -55,6 +55,16 @@ Parameters:
     Default: ""
     Description: Azure OpenAI deployment name
 
+  # 可以上傳到 IngestBucket 的 IAM 使用者（使用者與 access key 手動建立，不進範本）。
+  # dev 由 samconfig.toml 帶入；prod 留空就不建上傳政策，爬蟲帳號無法寫入 prod。
+  CrawlerUploaders:
+    Type: CommaDelimitedList
+    Default: ""
+    Description: IAM user names allowed to upload crawler files to the ingest bucket
+
+Conditions:
+  HasCrawlerUploaders: !Not [!Equals [!Join ["", !Ref CrawlerUploaders], ""]]
+
 # ---------------------------------------------------------------------
 # 全域設定：所有 Lambda 函式共用，之後新增爬蟲、推播等函式就不用重複寫
 # ---------------------------------------------------------------------
@@ -163,16 +173,16 @@ Resources:
 
   # -------------------------------------------------------------------
   # 4. 爬蟲上傳用的 S3 bucket（ingest bucket）
-  #    組員電腦跑爬蟲（cookie 不離開本機）→ 只把 JSON 上傳到這裡 → 之後由 Lambda 轉換寫入 EventsTable
-  #    上傳權限不在這份範本：IAM 使用者 Crawler-* 掛的是手動建立的政策 FomoLess-CrawlerUpload，
-  #    只允許 s3:PutObject 到 fomoless-dev-ingest-<帳號ID>/portal/*.json，所以 bucket 名稱格式不能改。
+  #    組員電腦跑爬蟲（cookie 不離開本機）→ 上傳 JSON 與海報到這裡 → 之後由 Lambda 轉換寫入 EventsTable
+  #    portal/：爬蟲 JSON（30 天後刪除）；posters/：海報圖片（Portal 要登入才看得到，所以要自己存）
+  #    上傳權限見下方 CrawlerUploadPolicy，說明見 docs/crawler-upload.md
   # -------------------------------------------------------------------
   IngestBucket:
     Type: AWS::S3::Bucket
     DeletionPolicy: Retain             # 刪除 Stack 時保留 bucket 和裡面的原始資料
     UpdateReplacePolicy: Retain
     Properties:
-      # bucket 名稱全球唯一，加上帳號 ID 避免撞名；必須和 FomoLess-CrawlerUpload 政策的 Resource 一致
+      # bucket 名稱全球唯一，加上帳號 ID 避免撞名；爬蟲組的上傳設定寫死這個名稱，不要改
       BucketName: !Sub fomoless-${Stage}-ingest-${AWS::AccountId}
       PublicAccessBlockConfiguration:  # 完全封鎖公開存取
         BlockPublicAcls: true
@@ -218,6 +228,30 @@ Resources:
               Bool:
                 aws:SecureTransport: 'false'
 
+  # 爬蟲上傳權限：只能 PutObject，不能讀、列出、刪除（金鑰外流也只能塞檔案進來）
+  # 副檔名比對有分大小寫，.JPG 會被拒絕，爬蟲端要統一轉小寫
+  CrawlerUploadPolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Condition: HasCrawlerUploaders
+    Properties:
+      Description: !Sub FomoLess ${Stage} crawler upload (PutObject only, portal/*.json and posters/ images)
+      Users: !Ref CrawlerUploaders
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: UploadPortalJsonOnly
+            Effect: Allow
+            Action: s3:PutObject
+            Resource: !Sub ${IngestBucket.Arn}/portal/*.json
+          - Sid: UploadPosterImagesOnly
+            Effect: Allow
+            Action: s3:PutObject
+            Resource:
+              - !Sub ${IngestBucket.Arn}/posters/*.jpg
+              - !Sub ${IngestBucket.Arn}/posters/*.jpeg
+              - !Sub ${IngestBucket.Arn}/posters/*.png
+              - !Sub ${IngestBucket.Arn}/posters/*.webp
+
 # ---------------------------------------------------------------------
 # 輸出：部署完成後印在終端機上的資訊
 # ---------------------------------------------------------------------
@@ -230,5 +264,5 @@ Outputs:
     Description: DynamoDB events table
     Value: !Ref EventsTable
   IngestBucketName:
-    Description: S3 bucket for crawler JSON uploads (upload to portal/*.json)
+    Description: S3 bucket for crawler uploads (portal/*.json, posters/ images)
     Value: !Ref IngestBucket
