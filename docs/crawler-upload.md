@@ -126,4 +126,4 @@ s3.upload_file("2590.webp", "fomoless-dev-ingest-697438195832",
 | --- | --- |
 | 11/09 | 手動建立 `Crawler-jenyang`、`Crawler-Kaiyu` 和政策 `FomoLess-CrawlerUpload`（只能上傳 `portal/*.json`） |
 | 11/24 | 手動政策更新 v2：開放 `posters/` 的 jpg、jpeg、png、webp |
-| 11/24 | 上傳政策移進 `template.yaml`（`CrawlerUploadPolicy`）。CI 部署後刪除手動的 `FomoLess-CrawlerUpload` |
+| 11/24 | 上傳政策移進 `template.yaml`（`CrawlerUploadPolicy`），刪除手動的 `FomoLess-CrawlerUpload`（當時 bucket 還沒部署，不影響上傳） |
