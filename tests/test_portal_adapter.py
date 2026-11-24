@@ -1,4 +1,5 @@
 import json
+import logging
 import sys
 from pathlib import Path
 
@@ -9,7 +10,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from shared.adapters.portal import from_portal_crawler
 from shared.models import Event, RegistrationMethod, RegistrationStatus
 
-SAMPLES_DIR = Path(__file__).resolve().parent.parent / "crawler" / "samples"
+SAMPLES_DIR = Path(__file__).resolve().parent / "fixtures" / "portal"
 
 
 def _load_sample(filename: str) -> dict:
@@ -173,3 +174,72 @@ def test_audience_and_raw_fields_none_handled_gracefully():
     assert event.audience == ""
     assert event.description is None
 
+
+
+# 12. 時數逐項容錯：不合理的那一項丟掉並記 warning，活動照常建立
+def test_invalid_soft_skill_hours_dropped_with_warning(caplog):
+    data = _load_sample("full_2590.json")
+    data["soft_skill_hours"] = [{"category": "終身學習", "hours": 612}]
+
+    with caplog.at_level(logging.WARNING, logger="shared.adapters.portal"):
+        event = from_portal_crawler(data)
+
+    assert event.soft_skill_hours == []
+    assert "Invalid hour entry" in caplog.text
+
+
+def test_unknown_learning_passport_category_dropped_with_warning(caplog):
+    data = _load_sample("learning_passport_2621.json")
+    data["learning_passport_hours"] = [{"category": "不存在的類別", "hours": 1}]
+
+    with caplog.at_level(logging.WARNING, logger="shared.adapters.portal"):
+        event = from_portal_crawler(data)
+
+    assert event.learning_passport_hours == []
+    assert "invalid category" in caplog.text
+
+
+# 13. end_at 為 None 或不存在時照常轉換，時數不檢查上限
+@pytest.mark.parametrize("missing", ["none", "absent"])
+def test_end_at_empty_still_converts(missing):
+    data = _load_sample("full_2590.json")
+    if missing == "none":
+        data["end_at"] = None
+    else:
+        data.pop("end_at")
+
+    event = from_portal_crawler(data)
+    assert event.end_at is None
+    assert event.soft_skill_hours  # 範例裡的軟實力時數仍保留
+
+
+# 14. organizer 為空時用預設值「未提供」並記 warning
+@pytest.mark.parametrize("organizer", [None, "", "   "])
+def test_empty_organizer_uses_default_host(organizer, caplog):
+    data = _load_sample("full_2590.json")
+    data["organizer"] = organizer
+
+    with caplog.at_level(logging.WARNING, logger="shared.adapters.portal"):
+        event = from_portal_crawler(data)
+
+    assert event.host == "未提供"
+    assert "organizer" in caplog.text
+
+
+def test_missing_organizer_uses_default_host():
+    data = _load_sample("full_2590.json")
+    data.pop("organizer")
+
+    assert from_portal_crawler(data).host == "未提供"
+
+
+# 15. 清單欄位為 None 時當成空清單
+def test_list_fields_none_become_empty():
+    data = _load_sample("full_2590.json")
+    for key in ("sdgs_tag", "soft_skill_hours", "hour_tags", "learning_passport_hours"):
+        data[key] = None
+
+    event = from_portal_crawler(data)
+    assert event.sdgs_tags == []
+    assert event.soft_skill_hours == []
+    assert event.hour_tags == []

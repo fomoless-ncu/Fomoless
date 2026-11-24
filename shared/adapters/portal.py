@@ -1,7 +1,6 @@
 import datetime
-import json
 import logging
-from pathlib import Path
+
 from pydantic import ValidationError
 
 from shared.models import (
@@ -44,7 +43,14 @@ TAG_CATALOG_KEYWORDS: dict[str, set[str]] = {
     "競賽": {"比賽", "大賽"},
 }
 
+DEFAULT_HOST = "未提供"
+
 logger = logging.getLogger(__name__)
+
+
+def _to_dt(value: str | None) -> datetime.datetime | None:
+    """ISO 字串轉 datetime；空值（None、""）回傳 None。"""
+    return datetime.datetime.fromisoformat(value) if value else None
 
 
 def _truncate(val: str | None, max_len: int) -> str | None:
@@ -55,15 +61,14 @@ def _truncate(val: str | None, max_len: int) -> str | None:
 
 
 def _hour_entries(
-    raw_items: list[dict],
-    event_start: datetime.datetime,
-    event_end: datetime.datetime,
+    raw_items: list[dict] | None,
+    max_hours: float | None,
     allowed_categories: list[str] | None = None,
 ) -> list[HourEntry]:
+    """逐項轉換時數；無效的那一項丟掉並記 warning，不讓整筆失敗。"""
     hour_entries: list[HourEntry] = []
-    max_hours = (event_end - event_start).total_seconds() / 3600
 
-    for item in raw_items:
+    for item in raw_items or []:
         try:
             entry = HourEntry(**item)
         except ValidationError:
@@ -74,7 +79,7 @@ def _hour_entries(
                 "Hour entry has invalid category: %s; skipping", entry.category
             )
             continue
-        if entry.hours > max_hours:
+        if max_hours is not None and entry.hours > max_hours:
             logger.warning(
                 "Hour entry hours (%s) exceed event duration (%s); skipping",
                 entry.hours,
@@ -90,7 +95,7 @@ def from_portal_crawler(item: dict) -> Event:
     # preprocessing
     activity_title: str | None = item.get("title")
     session_title: str | None = item.get("session_name")
-    if session_title is None or session_title == "":
+    if not session_title:
         session_title = activity_title
     elif isinstance(activity_title, str) and activity_title not in session_title:
         session_title = f"{activity_title}｜{session_title}"
@@ -101,6 +106,11 @@ def from_portal_crawler(item: dict) -> Event:
         "；".join(f"{(AUDIENCE_MAPPING.get(k, k))}：{v}" for k, v in audience.items()),
         100,
     )
+
+    host = (item.get("organizer") or "").strip()
+    if not host:
+        host = DEFAULT_HOST
+        logger.warning('"organizer" is empty; using "%s" instead', DEFAULT_HOST)
 
     raw_fields = item.get("raw_fields") or {}
     description = _truncate(raw_fields.get("活動內容", None), 3000)
@@ -131,26 +141,22 @@ def from_portal_crawler(item: dict) -> Event:
         )
         capacity = None
 
-    # event start and end time as datetime objects
-    event_start = datetime.datetime.fromisoformat(item.get("start_at", ""))
-    event_end = datetime.datetime.fromisoformat(item.get("end_at", ""))
+    # event start and end time as datetime objects; end_at may be empty
+    event_start = _to_dt(item.get("start_at"))
+    event_end = _to_dt(item.get("end_at"))
+    max_hours = (
+        (event_end - event_start).total_seconds() / 3600
+        if event_start and event_end
+        else None
+    )
 
-    learning_passport_hours: list[HourEntry] = _hour_entries(
-        item.get("learning_passport_hours", []) or [],
-        event_start,
-        event_end,
-        allowed_categories=LEARNING_PASSPORT_CATEGORIES
+    learning_passport_hours = _hour_entries(
+        item.get("learning_passport_hours"),
+        max_hours,
+        allowed_categories=LEARNING_PASSPORT_CATEGORIES,
     )
-    soft_skill_hours: list[HourEntry] = _hour_entries(
-        item.get("soft_skill_hours", []) or [],
-        event_start,
-        event_end,
-    )
-    hour_tags: list[HourEntry] = _hour_entries(
-        item.get("hour_tags", []) or [],
-        event_start,
-        event_end,
-    )
+    soft_skill_hours = _hour_entries(item.get("soft_skill_hours"), max_hours)
+    hour_tags = _hour_entries(item.get("hour_tags"), max_hours)
 
     passport_cond_str = item.get("learning_passport_condition", None)
     need_sign_in, need_sign_out, need_other = False, False, False
@@ -171,14 +177,8 @@ def from_portal_crawler(item: dict) -> Event:
         passport_cond = PassportCondition.SIGN_IN
     elif not need_sign_in and need_sign_out:
         passport_cond = PassportCondition.SIGN_OUT
-    elif need_other:
-        passport_cond = PassportCondition.OTHER
     else:
-        logger.warning(
-            "`learning_passport_condition` is not a valid value (%s); using `None` instead",
-            passport_cond_str,
-        )
-        passport_cond = None
+        passport_cond = PassportCondition.OTHER
 
     # simply guess tags by keywords; should be replaced w/ AI in the future?
     tags: list[str] = []
@@ -200,7 +200,7 @@ def from_portal_crawler(item: dict) -> Event:
         session_id=item.get("session_id"),
         title=session_title,
         activity_title=item.get("title"),
-        host=item.get("organizer", ""),
+        host=_truncate(host, 60),
         contact_email=None,
         speaker=item.get("speaker"),
         location=item.get("location"),
@@ -225,7 +225,7 @@ def from_portal_crawler(item: dict) -> Event:
         learning_passport_condition=passport_cond,
         hour_tags=hour_tags,
         soft_skill_hours=soft_skill_hours,
-        sdgs_tags=item.get("sdgs_tag", []),
+        sdgs_tags=item.get("sdgs_tag") or [],
         scraped_at=item.get("scraped_at"),
         views=item.get("views"),
         source=Source.CRAWLER_PORTAL,
@@ -237,26 +237,3 @@ def from_portal_crawler(item: dict) -> Event:
 
     return event
 
-
-def load_from_crawled_data(path: str | None = None) -> list[Event]:
-    events = []
-
-    if path is None:
-        crawl_data_folder = (
-            Path(__file__).parent.parent.parent / "tests" / "fixtures" / "portal"
-        )
-    else:
-        crawl_data_folder = Path(path)
-
-    for filename in crawl_data_folder.iterdir():
-        logger.info("Processing file: %s", filename)
-        with open(filename, "r", encoding="utf-8") as file:
-            events.append(from_portal_crawler(json.load(file)))
-
-    return events
-
-
-if __name__ == "__main__":
-    from pprint import pprint
-
-    pprint(load_from_crawled_data())
