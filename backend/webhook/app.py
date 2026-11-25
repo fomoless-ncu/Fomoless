@@ -29,12 +29,14 @@ from linebot.v3.exceptions import InvalidSignatureError
 from linebot.v3.messaging import (                        # LINE SDK：送出回覆訊息
     ApiClient,
     Configuration,
+    FlexMessage,
     MessagingApi,
     ReplyMessageRequest,
     TextMessage,
 )
 from linebot.v3.webhooks import FollowEvent, MessageEvent, TextMessageContent
 
+from activity_flex import ActivityReply, build_activity_reply
 from week import has_ended, months_between, query_bounds, week_range  # 同資料夾的 week.py：計算「本週」範圍（台灣時間）
 
 from llm.activity_query import ActivityQuery, ActivityQueryParser
@@ -50,6 +52,7 @@ EVENTS_TABLE = os.environ.get("EVENTS_TABLE", "")              # 活動資料表
 SSM_PREFIX = os.environ.get("SSM_PREFIX", "/fomoless/dev")     # 金鑰在 Parameter Store 的路徑前綴
 
 # LLM 無法解析時，用既有關鍵字提供接下來 7 天的活動清單。
+LINE_TEXT_LIMIT = 5000  # LINE 文字訊息字數上限
 WEEK_KEYWORDS = ("本週", "這週", "本周", "這周", "活動")
 
 # 固定的回覆文字
@@ -181,7 +184,9 @@ def format_events(
     lines.extend(format_event_line(e) for e in events[:8])
     if len(events) > 8:
         lines.append(f"…還有 {len(events) - 8} 個活動")
-    return "\n".join(lines)
+    text = "\n".join(lines)
+    # LINE 文字訊息上限 5000 字，超過會整則被拒。
+    return text if len(text) <= LINE_TEXT_LIMIT else text[: LINE_TEXT_LIMIT - 1] + "…"
 
 
 # =====================================================================
@@ -264,7 +269,7 @@ def filter_events(
 
     return matched
 
-def respond_to_text(text: str) -> str:
+def respond_to_text(text: str) -> str | ActivityReply:
     """優先用 LLM 解析及篩選活動，解析失敗時嘗試關鍵字備援。"""
     text = text.strip()
 
@@ -300,22 +305,26 @@ def respond_to_text(text: str) -> str:
         if not matched:
             return f"{label}沒有符合查詢條件的活動。"
 
-        return format_events(matched, label=label)
+        text_reply = format_events(matched, label=label)
+        # 依解析結果判斷，「這週活動」「本週有什麼活動」等說法都會拿到卡片。
+        if query.period == "this_week":
+            return ActivityReply(build_activity_reply(matched, label), text_reply)
+        return text_reply
 
     except Exception as error:
         logger.warning("Activity query failed: %s", type(error).__name__)
         return "暫時無法查詢活動，請稍後再試。"
 
-def reply(reply_token: str, text: str) -> None:
-    """用 Reply API 回覆一則文字訊息。
+def reply(reply_token: str, content: str | list[FlexMessage | TextMessage]) -> None:
+    """用 Reply API 回覆文字或活動卡片。
 
     reply_token 是 LINE 隨事件附上的「回覆憑證」，只能用一次、而且要在短時間內使用。
     用 Reply API 回覆不計入官方帳號的每月訊息額度；主動推播（Push API）才會計費。
-    之後 Gabe 要改成 Flex Message（卡片式訊息），就是改這裡的 messages。
     """
+    messages = [TextMessage(text=content)] if isinstance(content, str) else content
     with ApiClient(get_line_config()) as api_client:
         MessagingApi(api_client).reply_message(
-            ReplyMessageRequest(reply_token=reply_token, messages=[TextMessage(text=text)])
+            ReplyMessageRequest(reply_token=reply_token, messages=messages)
         )
 
 
@@ -326,8 +335,16 @@ def handle_event(event) -> None:
         reply(event.reply_token, WELCOME_TEXT)
     elif isinstance(event, MessageEvent) and isinstance(event.message, TextMessageContent):
         # 先產生回覆內容，再交給 LINE Reply API。
-        response_text = respond_to_text(event.message.text)
-        reply(event.reply_token, response_text)
+        content = respond_to_text(event.message.text)
+        if isinstance(content, ActivityReply):
+            try:
+                reply(event.reply_token, content.messages)
+            except Exception as error:
+                # 卡片被 LINE 拒絕（格式不符）時 reply token 尚未使用，改送文字清單。
+                logger.warning("Flex reply failed, falling back to text: %s", type(error).__name__)
+                reply(event.reply_token, content.fallback_text)
+        else:
+            reply(event.reply_token, content)
     # 其他事件（貼圖、圖片、封鎖等）目前不處理
 
 

@@ -1,0 +1,46 @@
+name: Bug 回報
+description: 程式壞掉、回覆錯誤、部署失敗
+title: "[Bug] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        貼 log 前先檢查：**不要貼金鑰、token、access key，也不要貼個資**（姓名、電話、信箱）。
+
+  - type: dropdown
+    id: env
+    attributes:
+      label: 環境
+      options:
+        - dev（fomoless-dev）
+        - prod（fomoless-prod）
+        - 本機（sam local / pytest）
+        - CI（GitHub Actions）
+    validations:
+      required: true
+
+  - type: textarea
+    id: what
+    attributes:
+      label: 發生什麼事
+      description: 實際看到的結果，以及你預期的結果
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: 重現步驟
+      placeholder: |
+        1. 在 LINE 傳「本週活動」
+        2. bot 回覆…
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Log 或截圖
+      description: CloudWatch、GitHub Actions 或終端機的錯誤訊息
+      render: text
