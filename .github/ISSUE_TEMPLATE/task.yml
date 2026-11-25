@@ -1,0 +1,63 @@
+name: 任務
+description: 指派給組員的開發任務（功能、文件、設定）
+title: "[任務代號] "
+labels: ["task"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        標題格式：`[PU-3] 新增 S3 觸發的處理 Lambda`。開好後在右側 **Assignees** 指派負責人。
+        做完發 PR 到 `develop`，PR 說明寫 `Closes #這個 issue 的編號`，合併後 issue 會自動關閉。
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: 組別
+      options:
+        - 後端（LINE Webhook）
+        - 資料庫（shared/）
+        - 爬蟲
+        - Discord
+        - 前端（LIFF）
+        - AI
+        - 基礎設施（template.yaml、CI/CD、IAM）
+        - 文件
+    validations:
+      required: true
+
+  - type: textarea
+    id: goal
+    attributes:
+      label: 要做什麼、為什麼
+      description: 背景與目標，讓接手的人不用再問一次
+    validations:
+      required: true
+
+  - type: textarea
+    id: deliverables
+    attributes:
+      label: 交付成果
+      description: 完成的標準，用勾選清單
+      value: |
+        - [ ]
+        - [ ] 附測試 `tests/test_*.py`
+    validations:
+      required: true
+
+  - type: input
+    id: branch
+    attributes:
+      label: 分支名稱
+      placeholder: feature/s3-processor
+
+  - type: input
+    id: depends
+    attributes:
+      label: 依賴
+      description: 要等哪個 issue 或 PR 先完成，例如 #12；沒有就留空
+
+  - type: input
+    id: due
+    attributes:
+      label: 截止日
+      placeholder: 11/30（日）
