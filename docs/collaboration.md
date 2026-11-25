@@ -14,13 +14,13 @@
 ## 1. Issue
 
 - 在 **Issues → New issue** 選範本：
-  - **任務**：開發、文件、設定類的工作。標題格式 `[任務代號] 說明`，例如 `[PU-3] 新增 S3 觸發的處理 Lambda`，會自動加上 `task` label。
+  - **開發任務**：開發、文件、設定類的工作。標題格式 `[任務代號] 說明`，例如 `[PU-3] 新增 S3 觸發的處理 Lambda`，會自動加上 `task` label。
   - **Bug 回報**：程式壞掉、回覆錯誤、部署失敗。**不要貼金鑰、token、個資。**
   - 臨時提問可以開空白 issue。
 - 開好後在右側 **Assignees** 指派負責人。用指令開也可以：
 
   ```sh
-  gh issue create --template 任務 --assignee <GitHub 帳號>
+  gh issue create --template 開發任務 --assignee <GitHub 帳號>
   ```
 
 - 接到任務的人，有問題直接在 issue 底下留言，討論紀錄會留在同一個地方。

@@ -1,4 +1,4 @@
-name: 任務
+name: 開發任務
 description: 指派給組員的開發任務（功能、文件、設定）
 title: "[任務代號] "
 labels: ["task"]
