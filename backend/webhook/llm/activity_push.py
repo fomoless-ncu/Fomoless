@@ -16,7 +16,9 @@ class PushCandidate(BaseModel):
     福利及認證條件須完整保留；沒有資料時用 None，不代表已確認沒有。
     """
 
-    model_config = ConfigDict(extra="forbid", strict=True, str_strip_whitespace=True)
+    model_config = ConfigDict(
+        extra="forbid", strict=True, str_strip_whitespace=True,
+    )
 
     event_id: str = Field(min_length=1, max_length=80)
     title: str = Field(min_length=1, max_length=120)
@@ -42,7 +44,9 @@ class PushInput(BaseModel):
 
 class PushRecommendation(BaseModel):
     """模型為已選定場次撰寫興趣相關理由，不篩選活動或產生活動事實。"""
-    model_config = ConfigDict(extra="forbid", strict=True, str_strip_whitespace=True)
+    model_config = ConfigDict(
+        extra="forbid", strict=True, str_strip_whitespace=True,
+    )
 
     event_id: str = Field(min_length=1, max_length=80)
     reason: str = Field(min_length=1, max_length=100)
@@ -50,7 +54,9 @@ class PushRecommendation(BaseModel):
 
 class PushDraft(BaseModel):
     """LLM 的結構化輸出；是否完整對應選定活動，由 push_service 驗證。"""
-    model_config = ConfigDict(extra="forbid", strict=True, str_strip_whitespace=True)
+    model_config = ConfigDict(
+        extra="forbid", strict=True, str_strip_whitespace=True,
+    )
 
     opening: str = Field(min_length=1, max_length=120)
     recommendations: list[PushRecommendation] = Field(
@@ -59,7 +65,9 @@ class PushDraft(BaseModel):
 
     @model_validator(mode="after")
     def _unique_event_ids(self) -> "PushDraft":
-        ids = [recommendation.event_id for recommendation in self.recommendations]
+        ids = [
+            recommendation.event_id for recommendation in self.recommendations
+        ]
         if len(ids) != len(set(ids)):
             raise ValueError("不得重複推薦同一場次")
         return self
