@@ -6,7 +6,9 @@ from pathlib import Path
 
 import pytest
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "backend" / "webhook"))
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT))  # app.py 透過 shared.privacy 使用共用遮罩。
+sys.path.insert(0, str(ROOT / "backend" / "webhook"))
 
 from app import activity_has_perk, filter_events
 from llm.activity_query import ActivityQuery

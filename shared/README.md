@@ -5,6 +5,8 @@
 | 檔案 | 用途 |
 | --- | --- |
 | `models.py` | `Event` 資料模型（一筆 = 一個場次）、標籤目錄 `TAG_CATALOG`、學習護照類別、Gemini 用的 `PosterExtraction` |
+| `privacy.py` | 共用的 `redact_pii()` 個資遮罩與 `contains_pii()` 偵測規則，供活動匯入、Query 與 Push 使用 |
+| `Makefile`、`build_layer.py` | 建立 `SharedPythonLayer`，以白名單將共用模組放進 `python/shared/` |
 | `sample_events.json` | 16 筆假場次（2026-11、12 月），含名額、學習護照與軟實力時數，開發時當假資料庫 |
 | `seed.py` | 把假活動寫進 DynamoDB（dev 或本機 DynamoDB Local） |
 | `import_portal.py` | 把 Portal 爬蟲 JSON 轉成 `Event` 匯入 DynamoDB，可順便刪掉假資料 |
@@ -78,6 +80,21 @@ for e in load_sample_events():
 | 一筆資料 = 一個場次 | 同一活動的多個場次各自一筆，用 `activity_id` 關聯 |
 | 學習護照類別用 `LEARNING_PASSPORT_CATEGORIES` 的名稱 | 才會自動變成訂閱標籤；正式清單待電算中心提供 |
 | AI 和擴充功能產生的資料先存 `draft` | 人工確認後才 `published`，草稿不會出現在查詢和推播 |
+
+## Lambda 共用套件
+
+`template.yaml` 的 `SharedPythonLayer` 透過 Layer 將 `__init__.py`、`privacy.py`、`models.py` 提供給函式。來源仍以本目錄為準，不另存一份程式碼；`build_layer.py` 僅於建置時複製到產物目錄。新增 Layer 模組時，請更新 `LAYER_MODULES` 白名單。
+
+```python
+from shared.privacy import contains_pii, redact_pii
+
+text = redact_pii(description)
+has_contact = contains_pii(ai_reason)
+```
+
+Query 在 `app.respond_to_text()` 呼叫 provider 前遮蔽使用者文字；Push 在 `push_service.py` 準備模型輸入時遮蔽公開欄位，並用 `contains_pii()` 驗證 AI 文案。兩個流程共用同一份 `_PATTERNS`，規則只需修改一處。其他程式直接呼叫 Query provider 時，應先使用共用函式處理輸入。
+
+完整建置沿用 `sam build --config-env dev`，需要 Docker；僅建置 Layer 可執行 `sam build SharedPythonLayer --config-env dev`。`models.py` 所需的 Pydantic 由函式依賴提供。更多打包與測試說明見 [AI Push Writer](../docs/ai-push-writer.md)。
 
 ## 寫入假資料
 

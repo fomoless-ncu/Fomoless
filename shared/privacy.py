@@ -1,4 +1,4 @@
-"""個資遮蔽：活動內文常夾帶承辦人姓名、分機、信箱，寫入資料庫前先遮掉。
+"""共用的個資遮蔽與偵測，供活動匯入、Query 與 Push 使用。
 
 規則刻意保守（寧可多遮），只處理自由文字欄位（例如 description），不碰講者、主辦單位。
 """
@@ -23,6 +23,15 @@ _PATTERNS: list[re.Pattern[str]] = [
     # 避免遮到講者頭銜（例如「教育協會專員」「某公司專員」）
     re.compile(r"(?![會司處組室院心所部館局])[一-鿿](?:小姐|專員)"),
 ]
+
+
+def contains_pii(text: str | None) -> bool:
+    """使用與 redact_pii 相同的規則，檢查文字是否含可辨識的聯絡資訊。
+
+    用於 AI 輸出驗證，不修改原文；已遮蔽的文字不會再次被當成個資。
+    規則只涵蓋上述格式，不能保證辨識所有姓名或所有形式的個資。
+    """
+    return bool(text) and any(pattern.search(text) for pattern in _PATTERNS)
 
 
 def redact_pii(text: str | None) -> str | None:

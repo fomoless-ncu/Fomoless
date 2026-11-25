@@ -10,6 +10,7 @@
 #   2. HTTP API：自動建立的 API Gateway 網址（POST /webhook），LINE 會把訊息送到這裡
 #   3. WebhookLogGroup：Lambda 的日誌，保留 14 天
 #   4. EventsTable：存活動資料的 DynamoDB 資料表
+#   5. SharedPythonLayer：共用的 privacy／models 模組，來源仍在 shared/
 #
 # AI 查詢設定：
 #   透過部署參數選擇 Azure／Gemini 與模型；預設使用 Gemini 解析活動查詢。
@@ -65,6 +66,8 @@ Globals:
     Timeout: 15               # 單次執行最長 15 秒，超過就強制結束，避免卡住一直計費
     LoggingConfig:
       LogFormat: JSON         # 日誌用 JSON 格式，方便在 CloudWatch 搜尋
+    Layers:
+      - !Ref SharedPythonLayer  # /opt/python/shared，供函式直接 import shared.*
     Environment:
       Variables:              # 傳給程式的環境變數，app.py 用 os.environ 讀取
         STAGE: !Ref Stage                       # dev 或 prod
@@ -74,6 +77,22 @@ Globals:
         LINE_CHANNEL_ACCESS_TOKEN: ""           # 同上
 
 Resources:
+  # 共用原始碼透過 Layer 提供，不必把整個 repo 改成函式的 CodeUri。
+  # Makefile 只複製明確列出的模組，不打包匯入腳本、測試資料或本機設定。
+  SharedPythonLayer:
+    Type: AWS::Serverless::LayerVersion
+    Metadata:
+      BuildMethod: makefile
+      BuildArchitecture: arm64
+    Properties:
+      LayerName: !Sub fomoless-${Stage}-shared-python
+      Description: Shared event models and privacy helpers
+      ContentUri: shared/
+      CompatibleRuntimes:
+        - python3.12
+      CompatibleArchitectures:
+        - arm64
+
   # -------------------------------------------------------------------
   # 1. LINE Webhook 的 Lambda 函式
   # -------------------------------------------------------------------

@@ -36,6 +36,7 @@ FomoLess｜NCU campus events, pushed to you on LINE by interest tags. 校內活�
 | Lambda | `fomoless-dev-line-webhook` | Python 3.12、arm64、512 MB |
 | API Gateway（HTTP API） | 自動產生 | `POST /webhook` |
 | DynamoDB | `fomoless-dev-events` | On-Demand；GSI `month-start_at-index`；刪 Stack 時保留資料 |
+| Lambda Layer | `fomoless-dev-shared-python` | 共用 `shared.privacy` 與 `shared.models`，由 SAM 建置 |
 | CloudWatch Logs | `/aws/lambda/fomoless-dev-line-webhook` | 保留 14 天 |
 | IAM 角色 | 自動產生 | 只能讀活動表與 `/fomoless/dev/*` 參數 |
 
