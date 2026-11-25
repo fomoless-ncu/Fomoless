@@ -1,0 +1,82 @@
+{
+  "pk": "portal.activity#2621#115A02237",
+  "activity_id": "2621",
+  "session_id": "115A02237",
+  "session_name": "當人文學遇見AI：研究方法、知識生產與教學實踐工作坊",
+  "title": "當人文學遇見AI：研究方法、知識生產與教學實踐工作坊",
+  "organizer": "文學院學士班",
+  "contact_email": null,
+  "audience": {
+    "staff": "全部教職員",
+    "students": "全部學生"
+  },
+  "url": "https://cis.ncu.edu.tw/iNCU/messageNotice/activityManagement/activity/2621",
+  "image_url": [
+    "https://cis.ncu.edu.tw/iNCU/messageNotice/activityManagement/activity/showImage/pp9_dIWHqax4oaCdv5rR",
+    "https://cis.ncu.edu.tw/iNCU/messageNotice/activityManagement/activity/showImage/pp9_dIWHqax4oaCduZbb"
+  ],
+  "status": "已截止",
+  "updated_at": null,
+  "views": 110,
+  "speaker": null,
+  "location": "文學一館A-107文學院學士班巢映電影空間",
+  "location_code": null,
+  "start_at": "2026-11-23T13:00:00+08:00",
+  "end_at": "2026-11-23T17:00:00+08:00",
+  "registration_start": "2026-11-04T12:00:00+08:00",
+  "registration_end": "2026-11-04T13:00:00+08:00",
+  "registration_method": "external",
+  "registration_url": "https://docs.google.com/forms/d/e/1FAIpQLSeAfadNFx2-abnAIco1lXDQfWQ_iInuHfkI8DSGWKk1TeZuag/viewform?usp=publish-editor",
+  "capacity": 80,
+  "registered_count": 0,
+  "waitlist_capacity": 0,
+  "waitlist_count": 0,
+  "registration_status": "已截止",
+  "hour_tags": [],
+  "learning_passport_hours": [
+    {
+      "category": "人文藝術",
+      "hours": 3.0
+    }
+  ],
+  "learning_passport_condition": "簽到",
+  "soft_skill_hours": [
+    {
+      "category": "跨域整合",
+      "hours": 1.33
+    },
+    {
+      "category": "科技應用",
+      "hours": 1.33
+    },
+    {
+      "category": "人文關懷",
+      "hours": 1.34
+    }
+  ],
+  "sdgs_tag": [
+    "優質教育"
+  ],
+  "raw_fields": {
+    "活動名稱": "當人文學遇見AI：研究方法、知識生產與教學實踐工作坊",
+    "承辦單位": "文學院學士班",
+    "參與對象": "教職員： 【全部教職員】 學生： 【全部學生】",
+    "活動內容": "請填Google表單報名，網址： https://docs.google.com/forms/d/e/1FAIpQLSeAfadNFx2-abnAIco1lXDQfWQ_iInuHfkI8DSGWKk1TeZuag/viewform?usp=publish-editor",
+    "場次名稱": "當人文學遇見AI：研究方法、知識生產與教學實踐工作坊",
+    "講師": "",
+    "地點": "文學一館A-107文學院學士班巢映電影空間",
+    "報名時間": "2026-11-04 12:00 ~ 2026-11-04 13:00",
+    "場次時間": "2026-11-23 13:00 ~ 2026-11-23 17:00",
+    "報名人數上限": "80",
+    "備取人數上限": "0",
+    "時數標籤": "本場次不提供時數",
+    "學習護照時數標籤": "人文藝術:3小時 (※ 本場次可獲得時數, 以此顯示之時數標籤為主)",
+    "學習護照認證條件": "簽到",
+    "軟實力時數標籤": "跨域整合 :  1.33小時、科技應用 :  1.33小時、人文關懷 :  1.34小時",
+    "場次說明": "請填寫Google表單報名，網址： https://docs.google.com/forms/d/e/1FAIpQLSeAfadNFx2-abnAIco1lXDQfWQ_iInuHfkI8DSGWKk1TeZuag/viewform?usp=publish-editor",
+    "報名人數": "0 / 80",
+    "備取人數": "0 / 0",
+    "報名按鈕": "已截止"
+  },
+  "scraped_at": "2026-11-07T18:21:57.107903+00:00"
+}
