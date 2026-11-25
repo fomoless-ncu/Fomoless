@@ -19,6 +19,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "backend" / "webhoo
 
 import app
 from llm.activity_query import ActivityQuery
+from shared.adapters.portal import from_portal_crawler
 from week import week_range
 
 
@@ -162,6 +163,132 @@ def test_simple_query_uses_ai(local_services):
     local_services["messaging"].return_value.reply_message.assert_called_once()
     request = local_services["messaging"].return_value.reply_message.call_args.args[0]
     assert request.messages[0].text == "接下來 7 天沒有符合查詢條件的活動。"
+
+
+def test_this_week_renders_portal_activity_as_flex(local_services):
+    """真實 Portal 樣本從匯入格式一路轉成卡片，欄位與按鈕正確。"""
+    path = Path(__file__).parent / "fixtures" / "portal" / "learning_passport_2621.json"
+    raw = json.loads(path.read_text(encoding="utf-8"))
+    tomorrow, _ = week_range(FIXED_NOW + timedelta(days=1))
+    raw["start_at"] = (tomorrow + timedelta(hours=13)).isoformat()
+    raw["end_at"] = (tomorrow + timedelta(hours=17)).isoformat()
+    event = from_portal_crawler(raw).to_dynamo_item()
+    local_services["table"].query.return_value = {"Items": [event]}
+    local_services["gemini_client"].models.generate_content.return_value.text = (
+        ActivityQuery(period="this_week").model_dump_json()
+    )
+
+    assert app.handler(signed_event("本週活動"), None)["statusCode"] == 200
+    request = local_services["messaging"].return_value.reply_message.call_args.args[0]
+    message = request.messages[0].to_dict()
+    assert message["type"] == "flex"
+    card = message["contents"]
+    assert card["header"]["backgroundColor"] == "#800020"
+    assert card["body"]["backgroundColor"] == "#FFFFFF"
+    lines = [part["text"] for part in card["body"]["contents"] if part["type"] == "text"]
+    assert lines == [
+        "當人文學遇見AI：研究方法、知識生產與教學實踐工作坊",
+        f"時間　{tomorrow:%m/%d} 13:00–17:00",
+        "地點　文學一館A-107文學院學士班巢映電影空間",
+        "報名　已截止（0/80 人）",
+        "學習護照　人文藝術 3 小時",
+    ]
+    action = card["footer"]["contents"][0]["action"]
+    assert action["label"] == "查看活動"
+    assert action["uri"] == "https://cis.ncu.edu.tw/iNCU/messageNotice/activityManagement/activity/2621"
+
+
+def test_this_week_groups_matching_sessions_in_one_card(local_services):
+    """同活動的多場次合併成一張卡，逐場列出時間與地點。"""
+    tomorrow, _ = week_range(FIXED_NOW + timedelta(days=1))
+    session = {
+        "event_id": "portal-1", "activity_id": "100", "source": "crawler_portal",
+        "activity_title": "CPR 急救訓練", "title": "CPR 第一場",
+        "start_at": (tomorrow + timedelta(hours=9)).isoformat(),
+        "location": "第一教室", "status": "published",
+    }
+    second = {
+        **session, "event_id": "portal-2", "title": "CPR 第二場",
+        "start_at": (tomorrow + timedelta(hours=14)).isoformat(), "location": "第二教室",
+    }
+    other = {
+        **session, "event_id": "manual-1", "activity_id": None, "activity_title": None,
+        "title": "職涯分享", "start_at": (tomorrow + timedelta(days=1, hours=9)).isoformat(),
+        "location": None,
+    }
+    local_services["table"].query.return_value = {"Items": [second, other, session]}
+    local_services["gemini_client"].models.generate_content.return_value.text = (
+        ActivityQuery(period="this_week").model_dump_json()
+    )
+
+    assert app.handler(signed_event("本週活動"), None)["statusCode"] == 200
+    request = local_services["messaging"].return_value.reply_message.call_args.args[0]
+    cards = request.messages[0].to_dict()["contents"]["contents"]
+    assert [card["body"]["contents"][0]["text"] for card in cards] == ["CPR 急救訓練", "職涯分享"]
+    assert "本次查到 2 場" in cards[0]["header"]["contents"][0]["text"]
+    texts = [part.get("text") for part in cards[0]["body"]["contents"]]
+    assert f"{tomorrow:%m/%d} 09:00｜第一教室" in texts
+    assert f"{tomorrow:%m/%d} 14:00｜第二教室" in texts
+    assert "以下資訊以最近一場為準" in texts
+    assert not cards[1].get("footer")
+
+
+def test_this_week_counts_hidden_activities_after_grouping(local_services):
+    """合併後超過 8 個活動時，附文字說明未顯示的數量。"""
+    tomorrow, _ = week_range(FIXED_NOW + timedelta(days=1))
+    events = [
+        {
+            "event_id": f"event-{number}",
+            "activity_id": f"activity-{number}",
+            "title": f"活動 {number}",
+            "start_at": (tomorrow + timedelta(hours=number)).isoformat(),
+            "status": "published",
+        }
+        for number in range(9)
+    ]
+    extra_session = {**events[0], "event_id": "extra-session"}
+    local_services["table"].query.return_value = {"Items": [extra_session, *events]}
+    local_services["gemini_client"].models.generate_content.return_value.text = (
+        ActivityQuery(period="this_week").model_dump_json()
+    )
+
+    assert app.handler(signed_event("本週活動"), None)["statusCode"] == 200
+    request = local_services["messaging"].return_value.reply_message.call_args.args[0]
+    cards = request.messages[0].to_dict()["contents"]["contents"]
+    assert len(cards) == 8
+    assert cards[-1]["body"]["contents"][0]["text"] == "活動 7"
+    assert request.messages[1].text == "還有 1 個活動未顯示。"
+
+
+def test_this_week_paraphrase_also_gets_flex(local_services):
+    """不同說法只要解析成本週，就回卡片，不限定一字不差的「本週活動」。"""
+    tomorrow, _ = week_range(FIXED_NOW + timedelta(days=1))
+    event = {"title": "職涯分享", "start_at": (tomorrow + timedelta(hours=9)).isoformat(), "status": "published"}
+    local_services["table"].query.return_value = {"Items": [event]}
+    local_services["gemini_client"].models.generate_content.return_value.text = (
+        ActivityQuery(period="this_week").model_dump_json()
+    )
+
+    assert app.handler(signed_event("這週有什麼活動"), None)["statusCode"] == 200
+    request = local_services["messaging"].return_value.reply_message.call_args.args[0]
+    assert request.messages[0].to_dict()["type"] == "flex"
+
+
+def test_flex_rejected_falls_back_to_text(local_services):
+    """LINE 拒絕卡片時改送文字清單，學生不會收不到回覆。"""
+    tomorrow, _ = week_range(FIXED_NOW + timedelta(days=1))
+    event = {"title": "職涯分享", "start_at": (tomorrow + timedelta(hours=9)).isoformat(), "status": "published"}
+    local_services["table"].query.return_value = {"Items": [event]}
+    local_services["gemini_client"].models.generate_content.return_value.text = (
+        ActivityQuery(period="this_week").model_dump_json()
+    )
+    reply_message = local_services["messaging"].return_value.reply_message
+    reply_message.side_effect = [RuntimeError("400 Bad Request"), None]
+
+    assert app.handler(signed_event("本週活動"), None)["statusCode"] == 200
+    assert reply_message.call_count == 2
+    fallback = reply_message.call_args.args[0].messages[0]
+    assert "職涯分享" in fallback.text
 
 
 def test_missing_provider_uses_keyword_fallback(local_services, monkeypatch):
