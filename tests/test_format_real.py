@@ -87,7 +87,7 @@ def test_invalid_url_omits_button(url):
 
 
 def test_many_sessions_are_capped():
-    """場次太多時只列前 4 場，其餘以「另有 N 場」帶過。"""
+    """場次太多時只列前 3 場，其餘以「另有 N 場」帶過。"""
     sessions = [
         base_event(activity_id="cpr", source="crawler_portal", start_at=f"2026-11-1{day}T09:00:00+08:00")
         for day in range(2, 8)
@@ -95,8 +95,8 @@ def test_many_sessions_are_capped():
     card = build_activity_reply(sessions, "接下來 7 天")[0].to_dict()["contents"]
     texts = body_texts(card)
     assert "本次查到 6 場" in card["header"]["contents"][0]["text"]
-    assert sum(text.startswith("11/1") for text in texts) == 4
-    assert "…另有 2 場" in texts
+    assert sum(text.startswith("11/1") for text in texts) == 3
+    assert "…另有 3 場" in texts
 
 
 def test_text_reply_respects_line_limit():
