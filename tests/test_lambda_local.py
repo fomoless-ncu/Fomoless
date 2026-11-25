@@ -24,7 +24,18 @@ from week import week_range
 
 
 SECRET = "local-test-channel-secret"
-TEST_NOW = datetime(2026, 11, 18, 4, tzinfo=timezone.utc)
+
+# 固定「現在」為月中週三（台北 12:00），本週與下週都在同一個月，
+# 避免月底執行時跨月查兩次，讓 query 呼叫次數不受實際執行日期影響。
+FIXED_NOW = datetime(2026, 11, 11, 4, 0, tzinfo=timezone.utc)
+
+
+class FrozenDatetime(datetime):
+    """只覆寫 now()，其餘行為與 datetime 相同。"""
+
+    @classmethod
+    def now(cls, tz=None):
+        return FIXED_NOW if tz is None else FIXED_NOW.astimezone(tz)
 
 
 def signed_event(text: str, encoded: bool = False) -> dict:
@@ -69,13 +80,12 @@ def local_services(monkeypatch):
     for name, value in settings.items():
         monkeypatch.setenv(name, value)
     monkeypatch.setattr(app, "EVENTS_TABLE", "local-test-events")
-    # These cases expect one query per period, so use weeks within a single month.
-    monkeypatch.setattr(app, "datetime", Mock(wraps=datetime, now=Mock(return_value=TEST_NOW)))
     caches = (app.get_secret, app.get_parser, app.get_line_config, app.get_query_parser)
     for cached in caches:
         cached.cache_clear()
 
-    start, _ = week_range(TEST_NOW)
+    monkeypatch.setattr(app, "datetime", FrozenDatetime)
+    start, _ = week_range(FIXED_NOW)
     next_monday = start + timedelta(days=7 - start.weekday())
     matching = {
         "title": "文學院講座", "host": "文學院", "perks": "提供便當",
@@ -158,7 +168,7 @@ def test_simple_query_uses_ai(local_services):
 def test_this_week_renders_portal_activity_as_flex(local_services):
     path = Path(__file__).parent / "fixtures" / "portal" / "learning_passport_2621.json"
     raw = json.loads(path.read_text(encoding="utf-8"))
-    tomorrow, _ = week_range(TEST_NOW + timedelta(days=1))
+    tomorrow, _ = week_range(FIXED_NOW + timedelta(days=1))
     raw["start_at"] = (tomorrow + timedelta(hours=13)).isoformat()
     raw["end_at"] = (tomorrow + timedelta(hours=17)).isoformat()
     event = from_portal_crawler(raw).to_dynamo_item()
@@ -188,7 +198,7 @@ def test_this_week_renders_portal_activity_as_flex(local_services):
 
 
 def test_this_week_groups_matching_sessions_in_one_card(local_services):
-    tomorrow, _ = week_range(TEST_NOW + timedelta(days=1))
+    tomorrow, _ = week_range(FIXED_NOW + timedelta(days=1))
     session = {
         "event_id": "portal-1", "activity_id": "100", "source": "crawler_portal",
         "activity_title": "CPR 急救訓練", "title": "CPR 第一場",
@@ -220,7 +230,7 @@ def test_this_week_groups_matching_sessions_in_one_card(local_services):
 
 
 def test_this_week_counts_hidden_activities_after_grouping(local_services):
-    tomorrow, _ = week_range(TEST_NOW + timedelta(days=1))
+    tomorrow, _ = week_range(FIXED_NOW + timedelta(days=1))
     events = [
         {
             "event_id": f"event-{number}",
