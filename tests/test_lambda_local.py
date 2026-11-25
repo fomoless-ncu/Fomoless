@@ -24,6 +24,18 @@ from week import week_range
 
 SECRET = "local-test-channel-secret"
 
+# 固定「現在」為月中週三（台北 12:00），本週與下週都在同一個月，
+# 避免月底執行時跨月查兩次，讓 query 呼叫次數不受實際執行日期影響。
+FIXED_NOW = datetime(2026, 11, 11, 4, 0, tzinfo=timezone.utc)
+
+
+class FrozenDatetime(datetime):
+    """只覆寫 now()，其餘行為與 datetime 相同。"""
+
+    @classmethod
+    def now(cls, tz=None):
+        return FIXED_NOW if tz is None else FIXED_NOW.astimezone(tz)
+
 
 def signed_event(text: str, encoded: bool = False) -> dict:
     """產生和 API Gateway 相同形狀的事件，使用測試 channel secret 計算簽章。"""
@@ -71,7 +83,8 @@ def local_services(monkeypatch):
     for cached in caches:
         cached.cache_clear()
 
-    start, _ = week_range(datetime.now(timezone.utc))
+    monkeypatch.setattr(app, "datetime", FrozenDatetime)
+    start, _ = week_range(FIXED_NOW)
     next_monday = start + timedelta(days=7 - start.weekday())
     matching = {
         "title": "文學院講座", "host": "文學院", "perks": "提供便當",
