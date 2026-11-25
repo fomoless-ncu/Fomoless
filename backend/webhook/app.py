@@ -39,6 +39,7 @@ from week import has_ended, months_between, query_bounds, week_range  # 同資�
 
 from llm.activity_query import ActivityQuery, ActivityQueryParser
 from llm.factory import create_query_parser
+from shared.privacy import redact_pii
 
 # ---------- 全域設定 ----------
 logger = logging.getLogger()
@@ -273,7 +274,9 @@ def respond_to_text(text: str) -> str:
     try:
         try:
             parser = get_query_parser()     # 依設定取得 Azure 或 Gemini 解析器
-            query = parser.parse(text)      # 將使用者文字解析成 ActivityQuery
+            # Query 與 Push 共用個資規則；在 provider 之前處理，避免各家重複實作。
+            # 原始 text 保留給本機關鍵字備援，不直接送進模型。
+            query = parser.parse(redact_pii(text) or "")
         except Exception as error:
             logger.warning("Activity parsing failed: %s", type(error).__name__)
             # 只有 LLM 設定或解析失敗才備援；資料庫失敗由外層處理。

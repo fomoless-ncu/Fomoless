@@ -42,6 +42,10 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements-dev.txt
 
+      # 實際執行 SAM 使用的 Makefile target，避免僅驗證 repo 內可以 import。
+      - name: Build shared Python layer
+        run: make -C shared build-SharedPythonLayer ARTIFACTS_DIR="$RUNNER_TEMP/fomoless-shared-layer"
+
       - name: Unit tests
         run: pytest -q
 

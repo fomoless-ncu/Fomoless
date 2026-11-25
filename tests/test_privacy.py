@@ -7,7 +7,7 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from shared.privacy import MASK, redact_pii  # noqa: E402
+from shared.privacy import MASK, contains_pii, redact_pii  # noqa: E402
 
 
 @pytest.mark.parametrize(
@@ -22,10 +22,12 @@ from shared.privacy import MASK, redact_pii  # noqa: E402
     ],
 )
 def test_redacts_contacts(text, leaked):
+    assert contains_pii(text)
     out = redact_pii(text)
     for s in leaked:
         assert s not in out
     assert MASK in out
+    assert not contains_pii(out)
 
 
 @pytest.mark.parametrize(
@@ -42,6 +44,7 @@ def test_redacts_contacts(text, leaked):
 )
 def test_keeps_non_pii(text):
     assert redact_pii(text) == text
+    assert not contains_pii(text)
 
 
 def test_adjacent_masks_are_merged():
@@ -51,3 +54,6 @@ def test_adjacent_masks_are_merged():
 def test_none_and_empty():
     assert redact_pii(None) is None
     assert redact_pii("") == ""
+    assert not contains_pii(None)
+    assert not contains_pii("")
+    assert not contains_pii(MASK)

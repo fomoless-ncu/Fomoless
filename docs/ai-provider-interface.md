@@ -18,6 +18,7 @@
 
 使用者文字
 → respond_to_text()
+→ 共用 redact_pii() 遮蔽聯絡資訊
 → 依設定取得 Azure 或 Gemini 解析器
 → 產生 ActivityQuery
 → 查詢 DynamoDB 指定期間的活動
@@ -43,6 +44,21 @@ AI 設定缺少、API 呼叫失敗或回應無法解析時，若文字包含「�
 | `backend/webhook/app.py`                | 串接文字解析、資料查詢、活動篩選及 LINE 回覆 |
 
 兩個供應商都實作 `ActivityQueryParser.parse()`，並回傳 `ActivityQuery`，讓 app.py 使用相同方式處理解析結果。
+
+## Query／Push 共用個資規則
+
+所有個資辨識規則集中在 [shared/privacy.py](../shared/privacy.py)，沿用既有函式名稱：
+
+- `redact_pii()`：將符合規則的信箱、電話、分機及部分承辦人稱謂換成「（已遮蔽）」。
+- `contains_pii()`：以同一組規則偵測文字，供 Push 輸出驗證使用。
+
+Query 在 `app.respond_to_text()` 呼叫模型之前使用 `redact_pii()`；Push 在 `push_service.py` 建立精簡輸入時使用相同函式。兩者都直接匯入 `shared.privacy`，不另維護正則表達式。一般查詢文字及不被判定為個資的網址參數保留原值；共用查詢提示詞另要求模型不要將遮蔽標記當成篩選條件。
+
+Query 的遮罩放在服務入口，因此 Gemini／Azure provider 實作與模型設定不需要為此修改；若其他程式直接呼叫 `parser.parse()`，應先使用同一個 `redact_pii()` 處理輸入。原始訊息只保留給本機關鍵字備援，不直接傳給模型。
+
+Lambda 透過 `SharedPythonLayer` 載入共用套件，打包方式見 [AI Push Writer](ai-push-writer.md#共用個資遮罩與-lambda-打包)。本機測試明確把 repo 根目錄及 `backend/webhook` 加進搜尋路徑，避免直接執行 `pytest` 與 `python -m pytest` 時的匯入差異。
+
+新增的 LINE 入口測試會檢查兩家模型 SDK 實際收到的文字，所有 API、DynamoDB 與 LINE 發送仍使用 mock 與假金鑰，不連線真實服務。
 
 ## 支援的查詢條件
 
