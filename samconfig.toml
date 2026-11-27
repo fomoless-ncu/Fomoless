@@ -8,7 +8,7 @@ use_container = true
 stack_name = "fomoless-dev"
 region = "ap-east-2"
 capabilities = "CAPABILITY_IAM"
-parameter_overrides = "Stage=dev"
+parameter_overrides = "Stage=dev CrawlerUploaders=Crawler-jenyang,Crawler-Kaiyu"   # 爬蟲上傳帳號，見 docs/crawler-upload.md
 resolve_s3 = true
 confirm_changeset = false
 fail_on_empty_changeset = false

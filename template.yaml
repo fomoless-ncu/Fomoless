@@ -10,6 +10,7 @@
 #   2. HTTP API：自動建立的 API Gateway 網址（POST /webhook），LINE 會把訊息送到這裡
 #   3. WebhookLogGroup：Lambda 的日誌，保留 14 天
 #   4. EventsTable：存活動資料的 DynamoDB 資料表
+#   5. IngestBucket：爬蟲上傳 JSON 的 S3 bucket（之後由 Lambda 轉換寫入 EventsTable）
 #
 # AI 查詢設定：
 #   透過部署參數選擇 Azure／Gemini 與模型；預設使用 Gemini 解析活動查詢。
@@ -53,6 +54,16 @@ Parameters:
     Type: String
     Default: ""
     Description: Azure OpenAI deployment name
+
+  # 可以上傳到 IngestBucket 的 IAM 使用者（使用者與 access key 手動建立，不進範本）。
+  # dev 由 samconfig.toml 帶入；prod 留空就不建上傳政策，爬蟲帳號無法寫入 prod。
+  CrawlerUploaders:
+    Type: CommaDelimitedList
+    Default: ""
+    Description: IAM user names allowed to upload crawler files to the ingest bucket
+
+Conditions:
+  HasCrawlerUploaders: !Not [!Equals [!Join ["", !Ref CrawlerUploaders], ""]]
 
 # ---------------------------------------------------------------------
 # 全域設定：所有 Lambda 函式共用，之後新增爬蟲、推播等函式就不用重複寫
@@ -160,6 +171,87 @@ Resources:
           Projection:
             ProjectionType: ALL          # 查詢結果包含所有欄位
 
+  # -------------------------------------------------------------------
+  # 4. 爬蟲上傳用的 S3 bucket（ingest bucket）
+  #    組員電腦跑爬蟲（cookie 不離開本機）→ 上傳 JSON 與海報到這裡 → 之後由 Lambda 轉換寫入 EventsTable
+  #    portal/：爬蟲 JSON（30 天後刪除）；posters/：海報圖片（Portal 要登入才看得到，所以要自己存）
+  #    上傳權限見下方 CrawlerUploadPolicy，說明見 docs/crawler-upload.md
+  # -------------------------------------------------------------------
+  IngestBucket:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Retain             # 刪除 Stack 時保留 bucket 和裡面的原始資料
+    UpdateReplacePolicy: Retain
+    Properties:
+      # bucket 名稱全球唯一，加上帳號 ID 避免撞名；爬蟲組的上傳設定寫死這個名稱，不要改
+      BucketName: !Sub fomoless-${Stage}-ingest-${AWS::AccountId}
+      PublicAccessBlockConfiguration:  # 完全封鎖公開存取
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      OwnershipControls:               # 停用 ACL，物件一律屬於 bucket 擁有者
+        Rules:
+          - ObjectOwnership: BucketOwnerEnforced
+      BucketEncryption:                # 伺服器端加密（S3 管理的金鑰，免費）
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      LifecycleConfiguration:
+        Rules:
+          # 原始 JSON 還沒遮蔽個資，處理完就用不到，30 天後自動刪除。
+          # 只套用在 portal/，之後若有其他用途（例如海報）放進這個 bucket，不會被一起刪掉
+          - Id: ExpireRawCrawlerJson
+            Status: Enabled
+            Prefix: portal/
+            ExpirationInDays: 30
+          - Id: AbortIncompleteUploads # 上傳到一半中斷的殘檔 1 天後清掉
+            Status: Enabled
+            AbortIncompleteMultipartUpload:
+              DaysAfterInitiation: 1
+
+  # 只接受 HTTPS 連線，拒絕明文 HTTP 存取
+  IngestBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref IngestBucket
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: DenyInsecureTransport
+            Effect: Deny
+            Principal: '*'
+            Action: 's3:*'
+            Resource:
+              - !GetAtt IngestBucket.Arn
+              - !Sub ${IngestBucket.Arn}/*
+            Condition:
+              Bool:
+                aws:SecureTransport: 'false'
+
+  # 爬蟲上傳權限：只能 PutObject，不能讀、列出、刪除（金鑰外流也只能塞檔案進來）
+  # 副檔名比對有分大小寫，.JPG 會被拒絕，爬蟲端要統一轉小寫
+  CrawlerUploadPolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Condition: HasCrawlerUploaders
+    Properties:
+      Description: !Sub FomoLess ${Stage} crawler upload (PutObject only, portal/*.json and posters/ images)
+      Users: !Ref CrawlerUploaders
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: UploadPortalJsonOnly
+            Effect: Allow
+            Action: s3:PutObject
+            Resource: !Sub ${IngestBucket.Arn}/portal/*.json
+          - Sid: UploadPosterImagesOnly
+            Effect: Allow
+            Action: s3:PutObject
+            Resource:
+              - !Sub ${IngestBucket.Arn}/posters/*.jpg
+              - !Sub ${IngestBucket.Arn}/posters/*.jpeg
+              - !Sub ${IngestBucket.Arn}/posters/*.png
+              - !Sub ${IngestBucket.Arn}/posters/*.webp
+
 # ---------------------------------------------------------------------
 # 輸出：部署完成後印在終端機上的資訊
 # ---------------------------------------------------------------------
@@ -171,3 +263,6 @@ Outputs:
   EventsTableName:
     Description: DynamoDB events table
     Value: !Ref EventsTable
+  IngestBucketName:
+    Description: S3 bucket for crawler uploads (portal/*.json, posters/ images)
+    Value: !Ref IngestBucket
